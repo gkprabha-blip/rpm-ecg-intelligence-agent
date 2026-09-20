@@ -1,38 +1,36 @@
-# RPM Connected Care AI Platform
+# RPM Connected Care AI Platform — v2.1
 
-A portfolio-ready, synthetic-data prototype inspired by real-world remote patient monitoring product workflows. It demonstrates how connected ECG, vitals, patient questionnaires, clinical dashboards, AI workflow prioritization, integration APIs, LOINC/FHIR-style transformations, ECG PDF document validation, and EHR flowsheet/Media workflows can fit together.
+Portfolio prototype based on a synthetic Remote Patient Monitoring workflow. It demonstrates connected-device ingestion, longitudinal trends, device-reported ECG classifications, workflow alerts, human-in-the-loop clinician intervention, ECG PDF integrity, API/FHIR-style transformation, and simulated EHR flowsheet/Media routing.
 
-> **Important:** Portfolio demonstration only. All patients and clinical data are synthetic. The application is not a medical device, does not diagnose, and must not be used for clinical care.
-
-## Demo flow
-1. Open **Patient Data Ingestion**.
-2. Select a synthetic Cardiology or Cirrhosis RPM patient.
-3. Enter a device-reported ECG classification, HR, SpO2, weight, BP, and questionnaire answers.
-4. Click **Ingest Patient Data**.
-5. Open **Clinical Command Center** to see the event and workflow priority.
-6. Open **Patient 360** for the individual RPM record.
-7. Open **ECG Documents** to generate/download the synthetic two-page ECG PDF. Patient name/MRN/DOB appear on each page in passing cases; failed cases intentionally omit the MRN on page 2.
-8. Open **Integration Hub / API** to inspect/download normalized JSON and an EHR-ready FHIR-style JSON payload with LOINC-coded observations.
-9. Open **Mock EHR** to see structured values in Flowsheets and validated PDFs in Media.
-10. Open **Data Lineage & Audit** to trace the event end-to-end.
-
-## Architecture demonstrated
-Patient devices → Bluetooth/tablet → vendor RPM cloud → clinical dashboard → AI orchestrator → integration API → LOINC/FHIR-style mapping → mock EHR flowsheets.
-
-ECG PDF follows a separate simulated document path: vendor → Cloverleaf → OnBase → mock EHR Media.
+## What changed in v2.1
+- New ingestion is clearly separated from existing stored history.
+- Every ingestion creates a new timestamped event; it does not overwrite prior readings.
+- Seven-day SpO2, heart-rate, and weight trends are visible in Patient 360.
+- Clinical Command Center shows alert and outreach status.
+- Clinician Interventions screen supports phone call, secure chat/message, video call, voicemail/unreachable, and care-team escalation.
+- Patient 360 and Mock EHR show communication history.
+- Data lineage now includes the human-intervention step.
+- Raw JSON is no longer shown immediately after ingestion; it remains in Integration Hub / API.
+- Synthetic ECG PDF retains patient name, MRN, and DOB on every page for passing cases; a deliberate failed case demonstrates document hold behavior.
 
 ## Run locally
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run app.py
+python3 -m pip install -r requirements.txt
+python3 -m streamlit run app.py
 ```
 
-## Deploy on Streamlit Community Cloud
-If this repository is already connected to Streamlit Community Cloud, replace/update `app.py`, `requirements.txt`, and `README.md` in the same GitHub repository. Streamlit normally redeploys automatically from the `main` branch.
+## Deploy
+Replace `app.py`, `requirements.txt`, and `README.md` in the existing GitHub repository. Streamlit Community Cloud should automatically redeploy the existing app URL from the main branch.
 
-Main file: `app.py`
+## Demo sequence
+1. Patient Data Ingestion — select a patient, compare the previous reading, enter a new reading, and ingest it.
+2. Clinical Command Center — show the resulting alert and outreach status.
+3. Patient 360 & Trends — show the seven-day trend and event history.
+4. Clinician Interventions — document a phone call or secure chat and outcome.
+5. Return to Command Center — show that the alert now has a documented intervention.
+6. ECG Documents — open/download the synthetic ECG report and show identifiers on every page.
+7. Integration Hub / API — show normalized JSON and FHIR-style EHR payload.
+8. Mock EHR — show flowsheet values, Media PDFs, and care-team communications.
+9. Data Lineage & Audit — trace the event end to end.
 
-## Interview positioning
-This prototype is designed to showcase AI Product Owner / Technical Product Owner skills: problem framing, workflow design, connected-device ingestion, healthcare interoperability, human-in-the-loop AI, document safety controls, product metrics, and end-to-end data lineage.
+> Synthetic data only. Portfolio demonstration only. Not for diagnosis, treatment, or clinical use.
