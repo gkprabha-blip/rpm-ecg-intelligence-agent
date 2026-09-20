@@ -1,35 +1,38 @@
-# RPM ECG Intelligence Agent
+# RPM Connected Care AI Platform
 
-Portfolio prototype demonstrating AI Product Owner thinking for Remote Patient Monitoring (RPM), inspired by real-world healthcare product workflows and implemented with **100% synthetic patient data**.
+A portfolio-ready, synthetic-data prototype inspired by real-world remote patient monitoring product workflows. It demonstrates how connected ECG, vitals, patient questionnaires, clinical dashboards, AI workflow prioritization, integration APIs, LOINC/FHIR-style transformations, ECG PDF document validation, and EHR flowsheet/Media workflows can fit together.
 
-## What it showcases
-- KardiaMobile 6L device-reported ECG classifications
-- Connected RPM ecosystem: ECG, SpO2, weight, continuous vitals, questionnaires
-- Patient tablet / vendor clinical dashboard workflow
-- Explainable exception prioritization and human-in-the-loop review
-- Missing-reading/device-support routing
-- Simulated LOINC-to-EHR flowsheet mapping and reconciliation
-- ECG PDF route: vendor → Cloverleaf → OnBase → Epic Media
-- Document identifier/compliance validation
-- Product epics, user story, guardrails, and AI-product KPIs
+> **Important:** Portfolio demonstration only. All patients and clinical data are synthetic. The application is not a medical device, does not diagnose, and must not be used for clinical care.
 
-## Safety / scope
-This is a portfolio demonstration, not a medical device, diagnostic system, or clinical decision support product. All names, IDs, measurements, thresholds, and scenarios are synthetic. The prototype consumes a device-reported ECG classification and does not interpret ECG waveforms. Demo thresholds are illustrative and must not be used for patient care.
+## Demo flow
+1. Open **Patient Data Ingestion**.
+2. Select a synthetic Cardiology or Cirrhosis RPM patient.
+3. Enter a device-reported ECG classification, HR, SpO2, weight, BP, and questionnaire answers.
+4. Click **Ingest Patient Data**.
+5. Open **Clinical Command Center** to see the event and workflow priority.
+6. Open **Patient 360** for the individual RPM record.
+7. Open **ECG Documents** to generate/download the synthetic two-page ECG PDF. Patient name/MRN/DOB appear on each page in passing cases; failed cases intentionally omit the MRN on page 2.
+8. Open **Integration Hub / API** to inspect/download normalized JSON and an EHR-ready FHIR-style JSON payload with LOINC-coded observations.
+9. Open **Mock EHR** to see structured values in Flowsheets and validated PDFs in Media.
+10. Open **Data Lineage & Audit** to trace the event end-to-end.
+
+## Architecture demonstrated
+Patient devices → Bluetooth/tablet → vendor RPM cloud → clinical dashboard → AI orchestrator → integration API → LOINC/FHIR-style mapping → mock EHR flowsheets.
+
+ECG PDF follows a separate simulated document path: vendor → Cloverleaf → OnBase → mock EHR Media.
 
 ## Run locally
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Recommended public deployment
-1. Create a GitHub repository and add `app.py`, `requirements.txt`, and this README.
-2. Use Streamlit Community Cloud to deploy the repository's `app.py`.
-3. Put the live demo URL and GitHub repository URL on your resume/LinkedIn under **AI Product Portfolio**.
-4. During interviews, open the Command Center, select SYN-1002, explain the correlated alert, then show Integration & Compliance and Product Owner View.
+## Deploy on Streamlit Community Cloud
+If this repository is already connected to Streamlit Community Cloud, replace/update `app.py`, `requirements.txt`, and `README.md` in the same GitHub repository. Streamlit normally redeploys automatically from the `main` branch.
 
-## Suggested resume entry
-**RPM ECG Intelligence Agent — AI Product Owner Portfolio Project**
-Designed and prototyped a multi-agent RPM workflow using synthetic patient data to correlate device-reported ECG classifications, vitals, weight and questionnaires; prioritize review workflows; identify device/data-integrity exceptions; simulate LOINC/EHR integration and ECG document routing; and demonstrate human-in-the-loop AI guardrails and product evaluation metrics.
+Main file: `app.py`
+
+## Interview positioning
+This prototype is designed to showcase AI Product Owner / Technical Product Owner skills: problem framing, workflow design, connected-device ingestion, healthcare interoperability, human-in-the-loop AI, document safety controls, product metrics, and end-to-end data lineage.
