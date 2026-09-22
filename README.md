@@ -1,8 +1,8 @@
-# RPM Connected Care AI Platform — V3.0
+# RPM Connected Care AI Platform — V3.1
 
 Synthetic healthcare product-management portfolio prototype built with Streamlit. No real patient data is used.
 
-## V3.0 highlights
+## V3.1 highlights
 - Demo authentication and role-based navigation for Patient, Clinician, Provider, RPM Admin, Integrations, and Portfolio Admin.
 - Admin-only **Logins & Roles** page with masked/revealable demo passwords and access descriptions.
 - Default portfolio session opens as **Admin**; users can sign out to test other roles.
@@ -21,3 +21,11 @@ Synthetic healthcare product-management portfolio prototype built with Streamlit
 - Integrations / Integrations Password
 
 These credentials intentionally demonstrate portfolio RBAC only. Production healthcare systems should use enterprise identity/SSO, MFA, server-side authorization, secure secret management and auditable least-privilege access.
+
+
+## V3.1 visual design refresh
+- Modern connected-care brand mark replaces the anatomical heart.
+- Trend panels use rounded clinical cards with consistent headers.
+- Weight and skin-temperature unit selectors are compact and aligned with their trend headings.
+- ECG and spirometry result actions remain available in context, including PDF download.
+- Typography, table headers, spacing, and clinical-status colors are refined for a calmer modern UI.

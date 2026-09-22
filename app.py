@@ -9,7 +9,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v3.0', page_icon='🫀', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v3.1', page_icon=':material/monitor_heart:', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -264,29 +264,49 @@ def battery_icon(level):
 def device_table(pid):
     return pd.DataFrame([{'Device':d['device'],'Measurement / mode':d.get('type',''),'Connected':'🟢 Connected' if d['connected'] else '🔴 Disconnected','Battery':battery_icon(d['battery']),'Internet':'📶 Online' if d['wifi'] else '🚫 Offline'} for d in st.session_state.devices[pid]])
 
-def trend_chart(pid, field, title, unit, min_key=None, max_key=None, display_unit=None):
-    es=patient_events(pid)[-7:]; x=[pd.to_datetime(e['timestamp']) for e in es]; raw=[e.get(field) for e in es]
-    src=[e.get('source','Device') for e in es]; symbols=['circle' if 'Device' in a else 'diamond' for a in src]
-    t=st.session_state.thresholds[pid]; raw_lo=t.get(min_key) if min_key else None; raw_hi=t.get(max_key) if max_key else None
-    def cv(v):
-        if v is None: return v
-        if field=='weight' and display_unit=='kg': return v/2.2046226218
-        if field=='skin_temp' and display_unit=='°F': return v*9/5+32
-        return v
-    y=[cv(v) for v in raw]; lo=cv(raw_lo); hi=cv(raw_hi)
-    colors=['#D62728' if (raw_lo is not None and v<raw_lo) or (raw_hi is not None and v>raw_hi) else ('#7B2CBF' if 'Manual' in src[i] else '#2878B5') for i,v in enumerate(raw)]
-    custom=[]
-    for e in es:
-        device=source_device(PATIENTS[pid]['care_plan'], field, e.get('source','Device'))
-        custom.append([e['event_id'],e.get('source','Device'),device,e['ecg']])
-    shown_unit=display_unit or unit
-    labels=[f'{v:.1f}' if isinstance(v,float) else str(v) for v in y]
-    fig=go.Figure(go.Scatter(x=x,y=y,mode='lines+markers+text',text=labels,textposition='top center',line={'color':'#7A7A7A'},marker={'size':11,'symbol':symbols,'color':colors},customdata=custom,hovertemplate='<b>Value:</b> %{y:.1f} '+shown_unit+'<br><b>Timestamp:</b> %{x|%b %d, %Y %I:%M %p}<br><b>Entry source:</b> %{customdata[1]}<br><b>Device:</b> %{customdata[2]}<br><b>Event:</b> %{customdata[0]}<br><b>ECG:</b> %{customdata[3]}<extra></extra>'))
-    if lo is not None: fig.add_hline(y=lo,line_dash='dash',line_color='#008C95',annotation_text='Min threshold')
-    if hi is not None: fig.add_hline(y=hi,line_dash='dash',line_color='#008C95',annotation_text='Max threshold')
-    fig.update_layout(title=title,height=310,margin=dict(l=20,r=20,t=55,b=20),yaxis_title=shown_unit,hovermode='closest')
-    st.plotly_chart(fig,use_container_width=True)
-    st.caption('● Device-generated   ◆ Manual clinician-assisted   🔵 Device-generated in-range   🟣 Manual clinician-assisted in-range   🔴 Out-of-threshold reading   Teal dashed lines = configured min/max limits')
+def _trend_icon(field):
+    icons={
+      'spo2':'<svg viewBox="0 0 24 24" fill="none"><path d="M4 12h3l2-5 4 10 2-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      'ecg_hr':'<svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l2-6 4 12 3-7 2 3h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      'weight':'<svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14l2 13H3L5 7Z" stroke="currentColor" stroke-width="2"/><path d="M9 7a3 3 0 0 1 6 0" stroke="currentColor" stroke-width="2"/></svg>',
+      'rr':'<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M12 12c-2-4-7-5-8-1-1 5 3 8 8 8M12 12c2-4 7-5 8-1 1 5-3 8-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+      'skin_temp':'<svg viewBox="0 0 24 24" fill="none"><path d="M10 5a2 2 0 1 1 4 0v8.2a4 4 0 1 1-4 0V5Z" stroke="currentColor" stroke-width="2"/><path d="M12 9v7" stroke="currentColor" stroke-width="2"/></svg>',
+      'glucose':'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3s6 7 6 11a6 6 0 1 1-12 0c0-4 6-11 6-11Z" stroke="currentColor" stroke-width="2"/></svg>'}
+    return icons.get(field,icons['spo2'])
+
+def trend_chart(pid, field, title, unit, min_key=None, max_key=None, display_unit=None, compact_unit_selector=False):
+    with st.container(border=True):
+        selected_unit=display_unit or unit
+        if compact_unit_selector:
+            hc,uc,sp=st.columns([2.5,1.0,4.5],vertical_alignment='center')
+            with hc: st.markdown(f'<div class="trend-head">{_trend_icon(field)}<span>{title}</span></div>',unsafe_allow_html=True)
+            with uc:
+                opts=['lb','kg'] if field=='weight' else ['°C','°F']
+                selected_unit=st.selectbox('Display unit',opts,index=opts.index(display_unit) if display_unit in opts else 0,key=f'{field}_trend_unit_{pid}')
+        else:
+            st.markdown(f'<div class="trend-head">{_trend_icon(field)}<span>{title}</span></div>',unsafe_allow_html=True)
+        es=patient_events(pid)[-7:]; x=[pd.to_datetime(e['timestamp']) for e in es]; raw=[e.get(field) for e in es]
+        src=[e.get('source','Device') for e in es]; symbols=['circle' if 'Device' in a else 'diamond' for a in src]
+        t=st.session_state.thresholds[pid]; raw_lo=t.get(min_key) if min_key else None; raw_hi=t.get(max_key) if max_key else None
+        def cv(v):
+            if v is None: return v
+            if field=='weight' and selected_unit=='kg': return v/2.2046226218
+            if field=='skin_temp' and selected_unit=='°F': return v*9/5+32
+            return v
+        y=[cv(v) for v in raw]; lo=cv(raw_lo); hi=cv(raw_hi)
+        colors=['#D92D20' if (raw_lo is not None and v<raw_lo) or (raw_hi is not None and v>raw_hi) else ('#7F56D9' if 'Manual' in src[i] else '#2F80ED') for i,v in enumerate(raw)]
+        custom=[]
+        for e in es:
+            device=source_device(PATIENTS[pid]['care_plan'], field, e.get('source','Device'))
+            custom.append([e['event_id'],e.get('source','Device'),device,e['ecg']])
+        labels=[f'{v:.1f}' if isinstance(v,float) else str(v) for v in y]
+        fig=go.Figure(go.Scatter(x=x,y=y,mode='lines+markers+text',text=labels,textposition='top center',line={'color':'#98A2B3'},marker={'size':10,'symbol':symbols,'color':colors},customdata=custom,hovertemplate='<b>Value:</b> %{y:.1f} '+selected_unit+'<br><b>Timestamp:</b> %{x|%b %d, %Y %I:%M %p}<br><b>Entry source:</b> %{customdata[1]}<br><b>Device:</b> %{customdata[2]}<br><b>Event:</b> %{customdata[0]}<br><b>ECG:</b> %{customdata[3]}<extra></extra>'))
+        if lo is not None: fig.add_hline(y=lo,line_dash='dash',line_color='#087F8C',annotation_text='Min threshold')
+        if hi is not None: fig.add_hline(y=hi,line_dash='dash',line_color='#087F8C',annotation_text='Max threshold')
+        fig.update_layout(height=285,margin=dict(l=15,r=15,t=18,b=10),yaxis_title=selected_unit,hovermode='closest',paper_bgcolor='rgba(0,0,0,0)',plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig,use_container_width=True)
+        st.markdown('<div class="trend-meta">Blue = device in range · Purple = manual entry · Red = outside threshold · Teal dashed = configured threshold</div>',unsafe_allow_html=True)
+        return selected_unit
 
 def source_device(plan, field, source):
     if 'Manual' in source: return 'Patient-reported / clinician-entered'
@@ -415,9 +435,23 @@ DEMO_ACCOUNTS={
  'Integrations':{'password':'Integrations Password','role':'Integrations / Support','description':'Integration Hub, device/interface status, EHR delivery, documents and lineage troubleshooting.'},
  'Admin':{'password':'ADMIN','role':'Portfolio Administrator','description':'Full portfolio access, including Logins & Roles.'}}
 if 'auth_user' not in st.session_state: st.session_state.auth_user='Admin'
-st.markdown('<style>[data-testid="stMetricLabel"] p{font-size:1rem!important;font-weight:700!important}[data-testid="stMetricValue"]{font-size:1.45rem!important;font-weight:600!important}.small-trend-title{font-size:1.05rem;font-weight:700;margin-top:.35rem}.role-chip{font-size:.88rem;font-weight:600}</style>',unsafe_allow_html=True)
+st.markdown(r'''<style>
+:root{--rpm-teal:#087F8C;--rpm-blue:#2F80ED;--rpm-ink:#243244;--rpm-muted:#667085;--rpm-line:#D8E4EA;--rpm-soft:#F5FAFB}
+[data-testid="stMetricLabel"] p{font-size:.96rem!important;font-weight:700!important;color:var(--rpm-ink)!important}
+[data-testid="stMetricValue"]{font-size:1.32rem!important;font-weight:650!important}
+[data-testid="stDataFrame"] thead th{font-size:.98rem!important;font-weight:750!important}
+.rpm-brand{display:flex;align-items:center;gap:.65rem;font-size:2.15rem;line-height:1.15;font-weight:760;color:#202938;margin:.2rem 0 1rem}
+.rpm-logo{display:inline-flex;align-items:center}
+.trend-head{display:flex;align-items:center;gap:.5rem;font-size:1.02rem;font-weight:750;color:var(--rpm-ink);margin:.05rem 0 .25rem}
+.trend-head svg{width:19px;height:19px;stroke:var(--rpm-teal)}
+.trend-meta{font-size:.78rem;color:var(--rpm-muted);margin-top:-.2rem}
+div[data-testid="stVerticalBlockBorderWrapper"]{border-color:var(--rpm-line)!important;border-radius:16px!important;box-shadow:0 1px 2px rgba(16,24,40,.04);background:#fff}
+div[data-testid="stVerticalBlockBorderWrapper"]>div{border-radius:16px!important}
+div[data-testid="stSelectbox"] label p{font-size:.78rem!important;font-weight:650!important;color:var(--rpm-muted)!important}
+.role-chip{font-size:.88rem;font-weight:600}
+</style>''',unsafe_allow_html=True)
 def login_screen():
-    st.title('🫀 RPM Connected Care AI Platform · v3.0')
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.1</span></div>''', unsafe_allow_html=True)
     st.subheader('🔐 Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -428,7 +462,7 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.title('🫀 RPM Connected Care AI Platform · v3.0')
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.1</span></div>''', unsafe_allow_html=True)
 st.caption(f'Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data • Signed in as {CURRENT_USER} ({CURRENT_ROLE})')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center','3A · Education Center']
@@ -673,14 +707,13 @@ elif menu.startswith('5 ·'):
         st.subheader('7-day longitudinal trends')
         trend_chart(pid,'spo2','SpO₂ Trend','%','spo2_min','spo2_max')
         trend_chart(pid,'ecg_hr','Heart Rate Trend','bpm','hr_min','hr_max')
-        wh,wu=st.columns([1.35,1],vertical_alignment='bottom'); wh.markdown('<div class="small-trend-title">⚖️ Weight Trend</div>',unsafe_allow_html=True); weight_unit=wu.selectbox('Display unit',['lb','kg'],key='weight_trend_unit_'+pid,label_visibility='visible')
-        trend_chart(pid,'weight','Weight',weight_unit,'weight_min','weight_max',weight_unit)
+        weight_unit=trend_chart(pid,'weight','Weight Trend','lb','weight_min','weight_max','lb',compact_unit_selector=True)
         trend_chart(pid,'rr','Respiratory Rate Trend','breaths/min','rr_min','rr_max')
-        th,tu=st.columns([1.55,1],vertical_alignment='bottom'); th.markdown('<div class="small-trend-title">🌡️ Skin Temperature Trend</div>',unsafe_allow_html=True); temp_unit=tu.selectbox('Display unit',['°C','°F'],key='temp_trend_unit_'+pid,label_visibility='visible')
-        trend_chart(pid,'skin_temp','Skin Temperature',temp_unit,'temp_min','temp_max',temp_unit)
+        temp_unit=trend_chart(pid,'skin_temp','Skin Temperature Trend','°C','temp_min','temp_max','°C',compact_unit_selector=True)
         trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
         if p['care_plan'] in SPIROMETRY_PLANS:
-            sh,sb=st.columns([4,1]); sh.subheader('🫁 Spirometry Trends')
+          with st.container(border=True):
+            sh,sb=st.columns([4,1]); sh.markdown('<div class="trend-head"><span>◌</span><span>Spirometry Trends</span></div>',unsafe_allow_html=True)
             _sp=[x for x in patient_events(pid)[-7:] if x.get('fev1') is not None]
             if _sp:
                 latest_sp=_sp[-1]
@@ -689,7 +722,8 @@ elif menu.startswith('5 ·'):
                 if st.session_state.get('show_spiro_pdf_'+pid,False):
                     _pdf=spirometry_pdf_bytes(latest_sp); show_pdf_inline(_pdf); st.download_button('⬇️ Download Spirometry PDF',_pdf,file_name=f"{latest_sp['event_id']}_spirometry.pdf",mime='application/pdf',key='dl_spiro_'+pid)
                 st.caption('Synthetic home-spirometry values. The alert engine compares FEV1 with the patient’s synthetic personal baseline; this is a portfolio rule, not a diagnostic criterion.')
-        eh,eb=st.columns([4,1]); eh.subheader('ECG classification history')
+        with st.container(border=True):
+          eh,eb=st.columns([4,1]); eh.markdown('<div class="trend-head"><span>⌁</span><span>ECG Classification History</span></div>',unsafe_allow_html=True)
         if eb.button('📄 Result PDF',key='ecg_pdf_trend_'+pid,use_container_width=True): st.session_state['show_ecg_pdf_'+pid]=not st.session_state.get('show_ecg_pdf_'+pid,False)
         st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in reversed(patient_events(pid)[-7:])]),hide_index=True,use_container_width=True)
         if st.session_state.get('show_ecg_pdf_'+pid,False):
