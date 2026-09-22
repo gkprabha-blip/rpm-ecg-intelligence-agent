@@ -4,11 +4,12 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 import plotly.graph_objects as go
+import fitz
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v2.9', page_icon='🫀', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v3.0', page_icon='🫀', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -395,18 +396,46 @@ def patient_picker(label,key,query_label='Search patient by name, MRN, care plan
     return st.selectbox(label,ids,index=idx,format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']} · {PATIENTS[x]['care_plan']}",key=key+'_select')
 
 def show_pdf_inline(pdf_bytes,height=760):
-    b64=base64.b64encode(pdf_bytes).decode('ascii')
-    components.html(f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="{height}" style="border:1px solid #ddd;border-radius:8px"></iframe>',height=height+20,scrolling=True)
+    try:
+        doc=fitz.open(stream=pdf_bytes,filetype='pdf')
+        for i,page in enumerate(doc):
+            pix=page.get_pixmap(matrix=fitz.Matrix(1.45,1.45),alpha=False)
+            st.image(pix.tobytes('png'),caption=f'Result PDF · page {i+1}',use_container_width=True)
+    except Exception:
+        st.warning('Inline preview is unavailable in this browser. Use Download PDF below.')
 
 def education_for(plan): return EDUCATION_LIBRARY.get(plan,[])
 
-st.title('🫀 RPM Connected Care AI Platform · v2.9')
-st.caption('Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data')
+# --- V3.0 demo authentication / role-based navigation ---
+DEMO_ACCOUNTS={
+ 'Patient':{'password':'Patient Password','role':'Patient','description':'Own patient experience, daily tasks, education, messages and results.'},
+ 'Clinician':{'password':'Clinician Password','role':'Clinician / RPM Nurse','description':'Assigned-patient Command Center, Patient 360, interventions, education/questionnaires and communications.'},
+ 'Provider':{'password':'Provider Password','role':'Provider / Physician','description':'Clinical review, escalations, trends/reports and intervention review.'},
+ 'RPM Admin':{'password':'RPM Admin Password','role':'RPM Administrator','description':'Enrollment, assignments, care pathways and operational configuration.'},
+ 'Integrations':{'password':'Integrations Password','role':'Integrations / Support','description':'Integration Hub, device/interface status, EHR delivery, documents and lineage troubleshooting.'},
+ 'Admin':{'password':'ADMIN','role':'Portfolio Administrator','description':'Full portfolio access, including Logins & Roles.'}}
+if 'auth_user' not in st.session_state: st.session_state.auth_user='Admin'
+st.markdown('<style>[data-testid="stMetricLabel"] p{font-size:1rem!important;font-weight:700!important}[data-testid="stMetricValue"]{font-size:1.45rem!important;font-weight:600!important}.small-trend-title{font-size:1.05rem;font-weight:700;margin-top:.35rem}.role-chip{font-size:.88rem;font-weight:600}</style>',unsafe_allow_html=True)
+def login_screen():
+    st.title('🫀 RPM Connected Care AI Platform · v3.0')
+    st.subheader('🔐 Secure Demo Sign In')
+    st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
+    u=st.text_input('Username'); pw=st.text_input('Password',type='password')
+    if st.button('Sign in',type='primary'):
+        acct=DEMO_ACCOUNTS.get(u)
+        if acct and pw==acct['password']:
+            st.session_state.auth_user=u; st.session_state.selected_menu='1 · Today / Care Plan' if u=='Patient' else ('9 · Integration Hub / API' if u=='Integrations' else '4 · Clinical Command Center & Action Queue'); st.rerun()
+        else: st.error('Invalid demo username or password.')
+if not st.session_state.get('auth_user'): login_screen(); st.stop()
+CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
+st.title('🫀 RPM Connected Care AI Platform · v3.0')
+st.caption(f'Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data • Signed in as {CURRENT_USER} ({CURRENT_ROLE})')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center','3A · Education Center']
 clinical_menu=['4 · Clinical Command Center & Action Queue','4A · Education & Questionnaire Library','5 · Patient 360 & Trends','6 · Clinician Interventions','7 · Care Coordination']
 integration_menu=['8 · ECG & Spirometry Documents','9 · Integration Hub / API','10 · Mock EHR','11 · Patient Identity & Duplicate Prevention','12 · Data Lineage & Audit']
 ai_menu=['13 · AI Agent Center','14 · Care Pathway Engine','15 · Architecture & Product']
+if CURRENT_USER=='Admin': ai_menu.append('15A · Logins & Roles')
 if 'selected_menu' not in st.session_state:
     st.session_state.selected_menu=patient_menu[0]
 
@@ -419,10 +448,16 @@ def nav_group(title, items):
             st.session_state.selected_menu=item
             st.rerun()
 
-nav_group('👤 PATIENT EXPERIENCE',patient_menu)
-nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu)
-nav_group('🔗 INTEGRATION',integration_menu)
-nav_group('🤖 AI & PRODUCT',ai_menu)
+if CURRENT_USER=='Patient': nav_group('👤 PATIENT EXPERIENCE',patient_menu)
+elif CURRENT_USER=='Integrations': nav_group('🔗 INTEGRATION',integration_menu)
+elif CURRENT_USER in ['Clinician','Provider']:
+    nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',[x for x in integration_menu if x.startswith(('8 ·','10 ·','12 ·'))])
+elif CURRENT_USER=='RPM Admin':
+    nav_group('👤 PATIENT EXPERIENCE',patient_menu); nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',integration_menu); nav_group('🤖 AI & PRODUCT',['14 · Care Pathway Engine','15 · Architecture & Product'])
+else:
+    nav_group('👤 PATIENT EXPERIENCE',patient_menu); nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',integration_menu); nav_group('🤖 AI & PRODUCT',ai_menu)
+st.sidebar.divider(); st.sidebar.markdown(f'<span class="role-chip">Signed in as: {CURRENT_USER}<br>{CURRENT_ROLE}</span>',unsafe_allow_html=True)
+if st.sidebar.button('Sign out',use_container_width=True): st.session_state.auth_user=None; st.rerun()
 menu=st.session_state.selected_menu
 
 if menu.startswith('1 ·'):
@@ -461,27 +496,38 @@ elif menu.startswith('2 ·'):
     if p['care_plan'] in SPIROMETRY_PLANS:
         st.subheader('🫁 Home Spirometry')
         sc1,sc2,sc3=st.columns(3); fev1=sc1.number_input('FEV1 (L)',0.3,6.0,float(p.get('baseline_fev1',2.4)),step=.05); fvc=sc2.number_input('FVC (L)',0.5,8.0,3.2,step=.05); pef=sc3.number_input('PEF (L/min)',50,800,450); st.caption('FEV1/FVC and percent of the synthetic personal FEV1 baseline are calculated automatically. These demo values are not diagnostic thresholds.')
+    entered_by=''
+    if mode.startswith('Clinician'): entered_by=st.selectbox('Clinician entering patient-reported data',['Dr. John Doe','Dr. Aisha Morgan','Dr. Samuel Lee','RPM Nurse - Demo'])
+    st.caption('Save the readings here before moving on. This creates a NEW timestamped RPM event, preserves history, updates trends, evaluates workflow alerts, and prepares the EHR-ready payload.')
+    if st.button("📤 Submit & Save Today's Readings" if mode.startswith('Patient') else '☎️ Save Clinician-Assisted Readings',type='primary'):
+        nums=[int(x['event_id'].split('-')[1]) for x in events]; eid=f"EVT-{max(nums)+1:03d}"; source='Device' if mode.startswith('Patient') else f'Manual - {entered_by} via outreach'
+        e={'event_id':eid,'patient_id':pid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'ecg':ecg,'ecg_hr':int(hr),'spo2':int(spo2),'weight':float(wt),'rr':int(rr),'skin_temp':float(skin_temp),'glucose':int(glucose),'sys':int(sys),'dia':int(dia),'sob':False,'chest':False,'dizzy':False,'meds':True,'questionnaire':{},'pdf_ok':pdf_ok,'source':source,'fev1':fev1,'fvc':fvc,'fev1_fvc':(fev1/fvc*100 if fev1 and fvc else None),'pef':pef,'fev1_pct_baseline':(fev1/p.get('baseline_fev1',2.4)*100 if fev1 else None),'spirometry_quality':'Acceptable simulated maneuver' if fev1 else None}; events.append(e); st.session_state.last_ingested=eid
+        for step in ['RPM data ingested','Clinical dashboard updated','Threshold/AI alert evaluation completed','EHR-ready payload generated']: log(eid,step)
+        pri,reasons,_=assess(e); st.success(f'{eid} saved as a NEW timestamped RPM event. Existing history was preserved. Source: {source}.'); a,b,c=st.columns(3); a.metric('Priority',pri); b.metric('SpO₂',f"{spo2}%"); c.metric('Heart rate',f"{hr} bpm")
+        if reasons: st.warning('Alert reasons: '+' | '.join(reasons))
+
     st.subheader(f"📋 {p['care_plan']} Daily Questionnaire")
     answers={}
     for key,q in questionnaire_for(p['care_plan']): answers[key]=st.radio(q,['No','Yes'],horizontal=True,key=f'q_{pid}_{key}',index=1 if key=='meds' else 0)
+    if st.button('💾 Save Daily Questionnaire',key='save_q_'+pid):
+        target=latest_for(pid)
+        if target:
+            target['questionnaire']=answers; target['sob']=answers.get('sob')=='Yes'; target['chest']=answers.get('chest')=='Yes'; target['dizzy']=answers.get('dizzy')=='Yes'; target['meds']=answers.get('meds')=='Yes'; log(target['event_id'],'Daily questionnaire submitted'); st.success('Daily questionnaire saved to the latest patient event.')
+        else: st.warning('Save today’s readings first, then save the questionnaire.')
+
     st.subheader('🎙️📷 Patient Samples')
-    st.caption('Optional patient-generated media for the synthetic care workflow. Audio and images are stored only in this demo session and are not clinically interpreted by the prototype.')
+    st.caption('Optional patient-generated media. Samples use their own save action and are routed to the clinical review queue.')
     audio_sample=st.audio_input('Record cough / breathing audio (optional)')
     image_sample=st.camera_input('Take a patient photo / symptom image (optional)')
     sample_note=st.text_input('Sample note (optional)',placeholder='Example: cough sample after morning questionnaire')
-    entered_by=''
-    if mode.startswith('Clinician'): entered_by=st.selectbox('Clinician entering patient-reported data',['Dr. John Doe','Dr. Aisha Morgan','Dr. Samuel Lee','RPM Nurse - Demo'])
-    st.caption('This button saves the values currently entered above as a NEW timestamped daily RPM event. It does not overwrite prior readings; it adds the new reading to trends, runs alert evaluation, and prepares the EHR-ready payload.')
-    if st.button("📤 Submit & Save Today's Readings" if mode.startswith('Patient') else '☎️ Save Clinician-Assisted Entry',type='primary'):
-        nums=[int(x['event_id'].split('-')[1]) for x in events]; eid=f"EVT-{max(nums)+1:03d}"; source='Device' if mode.startswith('Patient') else f'Manual - {entered_by} via outreach'
-        e={'event_id':eid,'patient_id':pid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'ecg':ecg,'ecg_hr':int(hr),'spo2':int(spo2),'weight':float(wt),'rr':int(rr),'skin_temp':float(skin_temp),'glucose':int(glucose),'sys':int(sys),'dia':int(dia),'sob':answers.get('sob')=='Yes','chest':answers.get('chest')=='Yes','dizzy':answers.get('dizzy')=='Yes','meds':answers.get('meds')=='Yes','questionnaire':answers,'pdf_ok':pdf_ok,'source':source,'fev1':fev1,'fvc':fvc,'fev1_fvc':(fev1/fvc*100 if fev1 and fvc else None),'pef':pef,'fev1_pct_baseline':(fev1/p.get('baseline_fev1',2.4)*100 if fev1 else None),'spirometry_quality':'Acceptable simulated maneuver' if fev1 else None}; events.append(e); st.session_state.last_ingested=eid
+    if st.button('💾 Save Patient Sample',key='save_sample_'+pid):
+        saved=0; target=latest_for(pid); link_event=target['event_id'] if target else 'NO-EVENT'
         for media_obj,media_type,ext in [(audio_sample,'Cough / breathing audio','wav'),(image_sample,'Patient image','jpg')]:
             if media_obj is not None:
-                st.session_state.patient_samples.append({'sample_id':f"SMP-{len(st.session_state.patient_samples)+1:03d}",'patient_id':pid,'event_id':eid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'type':media_type,'note':sample_note,'filename':f"{pid}_{eid}_{media_type.split()[0].lower()}.{ext}",'mime':'audio/wav' if ext=='wav' else 'image/jpeg','bytes':media_obj.getvalue(),'reviewed':False})
-                log(eid,f'{media_type} captured and filed to Patient Samples / Mock EHR Media')
-        for step in ['Daily questionnaire submitted','RPM data ingested','Clinical dashboard updated','Threshold/AI alert evaluation completed','EHR-ready payload generated']: log(eid,step)
-        pri,reasons,_=assess(e); st.success(f'{eid} saved as a NEW timestamped RPM event. Existing history was preserved. Source: {source}.'); a,b,c=st.columns(3); a.metric('Priority',pri); b.metric('SpO₂',f"{spo2}%"); c.metric('Heart rate',f"{hr} bpm")
-        if reasons: st.warning('Alert reasons: '+' | '.join(reasons))
+                st.session_state.patient_samples.append({'sample_id':f"SMP-{len(st.session_state.patient_samples)+1:03d}",'patient_id':pid,'event_id':link_event,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'type':media_type,'note':sample_note,'filename':f"{pid}_{link_event}_{media_type.split()[0].lower()}.{ext}",'mime':'audio/wav' if ext=='wav' else 'image/jpeg','bytes':media_obj.getvalue(),'reviewed':False}); saved+=1
+        if saved:
+            log(link_event,f'{saved} patient sample(s) captured and routed to clinical review'); st.success(f'{saved} patient sample(s) saved and routed to the Clinical Command Center.')
+        else: st.warning('Add an audio or image sample before saving.')
 
 elif menu.startswith('3A ·'):
     st.header('🎓 Patient Education Center')
@@ -627,10 +673,10 @@ elif menu.startswith('5 ·'):
         st.subheader('7-day longitudinal trends')
         trend_chart(pid,'spo2','SpO₂ Trend','%','spo2_min','spo2_max')
         trend_chart(pid,'ecg_hr','Heart Rate Trend','bpm','hr_min','hr_max')
-        wh,wu=st.columns([3,1]); wh.markdown('#### ⚖️ Weight Trend'); weight_unit=wu.selectbox('Display unit',['lb','kg'],key='weight_trend_unit_'+pid,label_visibility='visible')
+        wh,wu=st.columns([1.35,1],vertical_alignment='bottom'); wh.markdown('<div class="small-trend-title">⚖️ Weight Trend</div>',unsafe_allow_html=True); weight_unit=wu.selectbox('Display unit',['lb','kg'],key='weight_trend_unit_'+pid,label_visibility='visible')
         trend_chart(pid,'weight','Weight',weight_unit,'weight_min','weight_max',weight_unit)
         trend_chart(pid,'rr','Respiratory Rate Trend','breaths/min','rr_min','rr_max')
-        th,tu=st.columns([3,1]); th.markdown('#### 🌡️ Skin Temperature Trend'); temp_unit=tu.selectbox('Display unit',['°C','°F'],key='temp_trend_unit_'+pid,label_visibility='visible')
+        th,tu=st.columns([1.55,1],vertical_alignment='bottom'); th.markdown('<div class="small-trend-title">🌡️ Skin Temperature Trend</div>',unsafe_allow_html=True); temp_unit=tu.selectbox('Display unit',['°C','°F'],key='temp_trend_unit_'+pid,label_visibility='visible')
         trend_chart(pid,'skin_temp','Skin Temperature',temp_unit,'temp_min','temp_max',temp_unit)
         trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
         if p['care_plan'] in SPIROMETRY_PLANS:
@@ -639,13 +685,15 @@ elif menu.startswith('5 ·'):
             if _sp:
                 latest_sp=_sp[-1]
                 if sb.button('📄 Result PDF',key='spiro_pdf_'+pid,use_container_width=True): st.session_state['show_spiro_pdf_'+pid]=not st.session_state.get('show_spiro_pdf_'+pid,False)
-                _df=pd.DataFrame([{'Date':x['timestamp'][:10],'FEV1 (L)':round(x['fev1'],2),'FVC (L)':round(x['fvc'],2),'FEV1/FVC':round(x['fev1']/x['fvc'],2),'PEF (L/min)':round(x['pef'],0),'FEV1 % personal baseline':round(x['fev1_pct_baseline'],0)} for x in _sp]); st.line_chart(_df.set_index('Date')[['FEV1 (L)','FVC (L)']]); st.dataframe(_df,hide_index=True,use_container_width=True)
-                if st.session_state.get('show_spiro_pdf_'+pid,False): show_pdf_inline(spirometry_pdf_bytes(latest_sp))
+                _df=pd.DataFrame([{'Date':x['timestamp'][:10],'FEV1 (L)':round(x['fev1'],2),'FVC (L)':round(x['fvc'],2),'FEV1/FVC':round(x['fev1']/x['fvc'],2),'PEF (L/min)':round(x['pef'],0),'FEV1 % personal baseline':round(x['fev1_pct_baseline'],0)} for x in reversed(_sp)]); st.line_chart(_df.set_index('Date')[['FEV1 (L)','FVC (L)']]); st.dataframe(_df,hide_index=True,use_container_width=True)
+                if st.session_state.get('show_spiro_pdf_'+pid,False):
+                    _pdf=spirometry_pdf_bytes(latest_sp); show_pdf_inline(_pdf); st.download_button('⬇️ Download Spirometry PDF',_pdf,file_name=f"{latest_sp['event_id']}_spirometry.pdf",mime='application/pdf',key='dl_spiro_'+pid)
                 st.caption('Synthetic home-spirometry values. The alert engine compares FEV1 with the patient’s synthetic personal baseline; this is a portfolio rule, not a diagnostic criterion.')
         eh,eb=st.columns([4,1]); eh.subheader('ECG classification history')
         if eb.button('📄 Result PDF',key='ecg_pdf_trend_'+pid,use_container_width=True): st.session_state['show_ecg_pdf_'+pid]=not st.session_state.get('show_ecg_pdf_'+pid,False)
-        st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in patient_events(pid)[-7:]]),hide_index=True,use_container_width=True)
-        if st.session_state.get('show_ecg_pdf_'+pid,False): show_pdf_inline(ecg_pdf_bytes(e,e.get('pdf_ok',True)))
+        st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in reversed(patient_events(pid)[-7:])]),hide_index=True,use_container_width=True)
+        if st.session_state.get('show_ecg_pdf_'+pid,False):
+            _epdf=ecg_pdf_bytes(e,e.get('pdf_ok',True)); show_pdf_inline(_epdf); st.download_button('⬇️ Download ECG PDF',_epdf,file_name=f"{e['event_id']}_ecg.pdf",mime='application/pdf',key='dl_ecg_'+pid)
         st.subheader('🎙️📷 Patient Samples')
         ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
         if ps:
@@ -812,11 +860,23 @@ elif menu.startswith('14 ·'):
     st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
 
 elif menu.startswith('15 ·'):
-    st.header('🏗️ Architecture & Product Story'); st.info('V2.8 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
+    st.header('🏗️ Architecture & Product Story'); st.info('V3.0 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
     st.write('**MVP epics:** validated patient registration + MPI duplicate prevention · care-plan enrollment duration/review · care-plan-specific daily + ad-hoc questionnaires · bite-sized patient education completion · patient-generated audio/image samples · home spirometry + PDF · timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
 
+
+elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
+    st.header('🔐 Logins & Roles')
+    st.caption('Admin-only portfolio view. Demo passwords are intentionally simple and are not a production authentication pattern.')
+    st.info('Production healthcare applications should use enterprise identity/SSO, MFA, server-side authorization, secure secret storage, least-privilege access and auditable access controls.')
+    h=st.columns([1.1,1.5,1.8,3.4]); h[0].markdown('**Username**'); h[1].markdown('**Role**'); h[2].markdown('**Password**'); h[3].markdown('**Access / functionality**')
+    for username,acct in DEMO_ACCOUNTS.items():
+        c1,c2,c3,c4=st.columns([1.1,1.5,1.8,3.4],vertical_alignment='center'); c1.write(username); c2.write(acct['role']); key='reveal_'+username.replace(' ','_')
+        if key not in st.session_state: st.session_state[key]=False
+        pc,eye=c3.columns([4,1]); pc.code(acct['password'] if st.session_state[key] else '••••••••••••',language=None)
+        if eye.button('👁',key='eye_'+username,help='Show/hide demo password'): st.session_state[key]=not st.session_state[key]; st.rerun()
+        c4.write(acct['description'])
 
 elif menu.startswith('11 ·'):
     st.header('🧬 Patient Identity & Duplicate Prevention')

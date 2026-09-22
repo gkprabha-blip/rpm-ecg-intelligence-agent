@@ -1,16 +1,23 @@
-# RPM Connected Care AI Platform — V2.8
+# RPM Connected Care AI Platform — V3.0
 
-Synthetic portfolio prototype for end-to-end remote patient monitoring.
+Synthetic healthcare product-management portfolio prototype built with Streamlit. No real patient data is used.
 
-## V2.8 highlights
-- 19 care pathways, each with a synthetic daily questionnaire
-- Patient Education Center with bite-sized authoritative-source education and completion tracking
-- Clinician Education & Questionnaire Library for ad-hoc assignment
-- Demo patients spanning every care pathway with normal and alert scenarios
-- Home spirometry for pulmonary pathways: FEV1, FVC, FEV1/FVC, PEF, percent of personal baseline
-- Synthetic spirometry PDF with patient identifiers on each page
-- Spirometry trend, alert rule, Mock EHR flowsheet and Media filing
-- Existing ECG, RPM vitals, samples, communication, MPI, FHIR-style integration and audit workflows
+## V3.0 highlights
+- Demo authentication and role-based navigation for Patient, Clinician, Provider, RPM Admin, Integrations, and Portfolio Admin.
+- Admin-only **Logins & Roles** page with masked/revealable demo passwords and access descriptions.
+- Default portfolio session opens as **Admin**; users can sign out to test other roles.
+- PDF previews are rendered as images for Streamlit Cloud/browser reliability, with PDF download fallback.
+- ECG and spirometry history tables display newest timestamps first.
+- Refined metric/table typography and tighter trend-unit placement.
+- Separate patient-sample save action.
+- Existing V2.9 population prioritization, search/filtering, education, questionnaires, care pathways, spirometry, ECG, EHR and audit workflows retained.
 
-## Safety
-All patients and measurements are synthetic. Education summaries are portfolio content and link to authoritative public sources. This prototype does not diagnose, prescribe, or replace clinician judgment. Spirometry and alert rules are demonstrative, not validated clinical protocols.
+## Demo credentials
+- Admin / ADMIN
+- Patient / Patient Password
+- Clinician / Clinician Password
+- Provider / Provider Password
+- RPM Admin / RPM Admin Password
+- Integrations / Integrations Password
+
+These credentials intentionally demonstrate portfolio RBAC only. Production healthcare systems should use enterprise identity/SSO, MFA, server-side authorization, secure secret management and auditable least-privilege access.

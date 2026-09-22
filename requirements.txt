@@ -2,3 +2,5 @@ streamlit>=1.39
 pandas>=2.0
 reportlab>=4.0
 plotly>=5.24
+
+pymupdf>=1.24
