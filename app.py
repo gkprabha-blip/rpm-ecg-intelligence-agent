@@ -7,7 +7,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v2.6', page_icon='🫀', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v2.7.1', page_icon='🫀', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -266,16 +266,20 @@ def questionnaire_for(plan):
     }
     return templates.get(plan,templates['Cardiology'])
 
-st.title('🫀 RPM Connected Care AI Platform · v2.6')
+st.title('🫀 RPM Connected Care AI Platform · v2.7.1')
 st.caption('Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 st.sidebar.markdown('### 👤 PATIENT EXPERIENCE')
+st.sidebar.caption('Patient-facing workflows ↓')
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center']
 st.sidebar.markdown('### 🩺 CLINICAL EXPERIENCE')
+st.sidebar.caption('Clinician workflows ↓')
 clinical_menu=['4 · Clinical Command Center & Action Queue','5 · Patient 360 & Trends','6 · Clinician Interventions','7 · Care Coordination']
 st.sidebar.markdown('### 🔗 INTEGRATION')
+st.sidebar.caption('Interoperability & EHR workflows ↓')
 integration_menu=['8 · ECG Documents','9 · Integration Hub / API','10 · Mock EHR','11 · Patient Identity & Duplicate Prevention','12 · Data Lineage & Audit']
 st.sidebar.markdown('### 🤖 AI & PRODUCT')
+st.sidebar.caption('Agent logic, pathways & architecture ↓')
 ai_menu=['13 · AI Agent Center','14 · Care Pathway Engine','15 · Architecture & Product']
 menu=st.sidebar.radio('Navigate',patient_menu+clinical_menu+integration_menu+ai_menu,label_visibility='collapsed')
 
