@@ -1,11 +1,38 @@
-# RPM Connected Care AI Platform v2.5
+# RPM Connected Care AI Platform — v2.6
 
-Synthetic portfolio prototype for remote patient monitoring. No real PHI; not for clinical use.
+Synthetic portfolio prototype for demonstrating end-to-end remote patient monitoring product design. It is not a medical device, diagnostic system, clinical protocol, or live EHR integration.
 
-## v2.5 additions
-- Patient-registration required fields and validation: DOB MM/DD/YYYY, U.S. state dropdown, city/ZIP/phone validation, insurance and next-of-kin fields.
-- Next-of-kin relationship dropdown modeled on common patient/related-person relationships.
-- Care-plan enrollment duration and next-review fields. RPM has no universal fixed program duration; duration is clinician-defined for acute/chronic monitoring.
-- Daily questionnaire templates for Cardiology, Cirrhosis/Liver Disease, Hypertension, Diabetes/CGM, Heart Failure, COPD/Pulmonary, Chronic Kidney Disease, and Post-Surgical Recovery.
-- Patient Samples: optional cough/breathing audio recording and patient photo capture from the Patient Home page; linked to the patient/event and visible in Patient 360 and Mock EHR Media.
-- Existing MPI duplicate prevention, trends, thresholds, device provenance, ECG PDF, communications, interventions, API/FHIR simulation, and audit trail remain.
+## V2.6 product structure
+
+### Patient Experience
+- Today / Care Plan daily task list and completion progress
+- Patient Home & Daily Check-In with device/manual provenance
+- Care-plan-specific questionnaires, ECG, connected devices and Patient Samples
+- Patient/clinician chat and simulated video workflow
+
+### Clinical Experience
+- Clinical Command Center with actionable work queue
+- Patient 360 trends, configurable thresholds and provenance
+- Clinician interventions and closed-loop documentation
+- Care Coordination for home nursing, labs, device replacement, mobile imaging, DME and support
+
+### Integration
+- ECG document validation and synthetic PDF
+- Normalized API and FHIR-style payload viewer
+- Mock EHR flowsheet/media/communications
+- Shared MPI duplicate prevention
+- End-to-end lineage and audit trail
+
+### AI & Product
+- AI Agent Center for workflow prioritization
+- Configurable Care Pathway Engine
+- Architecture, guardrails, epics and KPIs
+
+## Safety
+All patients, MRNs, readings, questionnaires, thresholds, alerts, documents and workflows are synthetic. Thresholds and pathway examples are for product demonstration only and are not clinical recommendations. The prototype does not diagnose, prescribe, or replace clinician judgment.
+
+## Run
+```bash
+python3 -m pip install -r requirements.txt
+python3 -m streamlit run app.py
+```

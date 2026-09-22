@@ -7,7 +7,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v2.5', page_icon='🫀', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v2.6', page_icon='🫀', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -258,12 +258,37 @@ def questionnaire_for(plan):
     }
     return templates.get(plan,templates['Cardiology'])
 
-st.title('🫀 RPM Connected Care AI Platform · v2.5')
-st.caption('Patient Daily Check-In • Connected Devices • Thresholds • Trends • Questionnaire • Secure Chat • Video-call Simulation • API/FHIR • Synthetic data')
+st.title('🫀 RPM Connected Care AI Platform · v2.6')
+st.caption('Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
-menu=st.sidebar.radio('Navigate',['1 · Patient Home & Daily Check-In','2 · Clinical Command Center','3 · Patient 360 & Trends','4 · ECG Documents','5 · AI Agent','6 · Clinician Interventions','7 · Communication Center','8 · Integration Hub / API','9 · Mock EHR','10 · Data Lineage & Audit','11 · Architecture & Product','12 · Patient Identity & Duplicate Prevention'])
+st.sidebar.markdown('### 👤 PATIENT EXPERIENCE')
+patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center']
+st.sidebar.markdown('### 🩺 CLINICAL EXPERIENCE')
+clinical_menu=['4 · Clinical Command Center & Action Queue','5 · Patient 360 & Trends','6 · Clinician Interventions','7 · Care Coordination']
+st.sidebar.markdown('### 🔗 INTEGRATION')
+integration_menu=['8 · ECG Documents','9 · Integration Hub / API','10 · Mock EHR','11 · Patient Identity & Duplicate Prevention','12 · Data Lineage & Audit']
+st.sidebar.markdown('### 🤖 AI & PRODUCT')
+ai_menu=['13 · AI Agent Center','14 · Care Pathway Engine','15 · Architecture & Product']
+menu=st.sidebar.radio('Navigate',patient_menu+clinical_menu+integration_menu+ai_menu,label_visibility='collapsed')
 
 if menu.startswith('1 ·'):
+    st.header('🏠 Today / Care Plan')
+    st.caption('Patient-facing daily worklist: what is due, what is complete, device readiness, and how to contact the care team.')
+    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['care_plan']}",key='today_patient')
+    p=PATIENTS[pid]; es=patient_events(pid); latest=es[-1] if es else None
+    st.subheader(f"Good day, {p['name']}")
+    st.write(f"**Care plan:** {p['care_plan']}  |  **Assigned clinician:** {p['clinician']}  |  **Program:** {p.get('program_duration','Ongoing / clinician-defined')}  |  **Next review:** {p.get('next_review_date','Clinician-defined')}")
+    submitted_today=bool(latest and latest['timestamp'][:10]==datetime.now().date().isoformat())
+    tasks=[('Connected-device readings',submitted_today),('Daily care-plan questionnaire',submitted_today),('Medication check-in',submitted_today),('ECG when scheduled/requested',submitted_today and latest.get('ecg') not in [None,'Not collected']),('Review care-team messages',not any(m['patient_id']==pid and m['sender']=='Clinician' and not m.get('read',False) for m in st.session_state.messages))]
+    done=sum(int(x[1]) for x in tasks); st.progress(done/len(tasks),text=f'{done} of {len(tasks)} daily tasks complete')
+    for task,ok in tasks: st.write(('✅' if ok else '○')+' '+task)
+    st.subheader('Device readiness')
+    for d in st.session_state.devices.get(pid,[]):
+        batt=d.get('battery',0); icon='🟢' if batt>=60 else ('🟡' if batt>=25 else '🔴'); conn='Connected' if d.get('connected') else 'Disconnected'; wifi='📶' if d.get('wifi') else '⚠️ Offline'
+        st.write(f"{icon} **{d['device']}** — {conn} · Battery {batt}% · {wifi} · {d['type']}")
+    st.info('Use **Patient Home & Daily Check-In** to simulate today’s measurements, questionnaire, ECG, or requested patient sample. Use **Communication Center** for chat/video simulation.')
+
+elif menu.startswith('2 ·'):
     st.header('📱 Patient Home & Daily Check-In')
     st.info('PATIENT-HOME SIMULATOR — This page simulates a patient tablet/app receiving connected-device readings and the patient completing today’s care-plan questionnaire. Clinician-assisted entry is available for missed submissions.')
     pid=st.selectbox('Synthetic patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']} · {PATIENTS[x]['care_plan']}")
@@ -299,8 +324,19 @@ if menu.startswith('1 ·'):
         pri,reasons,_=assess(e); st.success(f'{eid} saved as a NEW timestamped RPM event. Existing history was preserved. Source: {source}.'); a,b,c=st.columns(3); a.metric('Priority',pri); b.metric('SpO₂',f"{spo2}%"); c.metric('Heart rate',f"{hr} bpm")
         if reasons: st.warning('Alert reasons: '+' | '.join(reasons))
 
-elif menu.startswith('2 ·'):
-    st.header('🩺 Clinical Command Center')
+elif menu.startswith('4 ·'):
+    st.header('🩺 Clinical Command Center & Action Queue')
+    st.caption('A work-management view that separates clinical, engagement, and technical exceptions and shows the next operational action.')
+    aq=[]
+    for _pid,_p in PATIENTS.items():
+        _e=latest_for(_pid)
+        if _e:
+            _pri,_reasons,_=assess(_e); _unread=sum(1 for m in st.session_state.messages if m['patient_id']==_pid and m['sender']=='Patient' and not m.get('read',False)); _bad=[d for d in st.session_state.devices.get(_pid,[]) if not d.get('connected') or not d.get('wifi') or d.get('battery',100)<25]
+            _reason=(_reasons[0] if _reasons else ('Unread patient message' if _unread else ('Device connectivity/battery exception' if _bad else 'Stable / routine monitoring')))
+            _action='Provider/RN review' if _pri in ['HIGH','MEDIUM'] else ('Respond to patient' if _unread else ('Technical outreach' if _bad else 'Monitor'))
+            aq.append({'Priority':_pri,'Patient':_p['name'],'Reason':_reason,'Assigned clinician':_p['clinician'],'Next action':_action})
+    if aq: st.dataframe(pd.DataFrame(aq),hide_index=True,use_container_width=True)
+    st.divider()
     st.write('Population view for clinicians: alerts, assigned clinician, connectivity, device status, and patient communications.')
     with st.expander('➕ Create Patient / Add New Patient'):
         patient_creation_panel('Clinical Dashboard','clinical')
@@ -328,8 +364,9 @@ elif menu.startswith('2 ·'):
     unread=[m for m in st.session_state.messages if m['patient_id']==pid and m['sender']=='Patient' and not m.get('read',False)]
     if unread: st.error(f"💬 {len(unread)} unread patient message(s). Open Communication Center for timely intervention.")
 
-elif menu.startswith('3 ·'):
+elif menu.startswith('5 ·'):
     st.header('👤 Patient 360 & Trends')
+    st.caption('Trend interpretation: baseline = patient’s recent typical range; threshold = clinician-configured alert boundary; current reading = actual measurement. Teal dashed lines are thresholds, purple points are manual entries, and red points are out-of-threshold readings.')
     pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); p=PATIENTS[pid]
     st.info(f"Care plan: {p['care_plan']} | Program duration: {p.get('program_duration','Ongoing / clinician-defined')} | Next review: {p.get('next_review_date','Clinician-defined')}"); e=latest_for(pid)
     if not e:
@@ -362,7 +399,22 @@ elif menu.startswith('3 ·'):
         t['dia_min'],t['dia_max']=st.slider('Diastolic BP min / max',40,140,(int(t['dia_min']),int(t['dia_max']))); t['rr_min'],t['rr_max']=st.slider('Respiratory rate min / max',6,40,(int(t['rr_min']),int(t['rr_max']))); t['temp_min'],t['temp_max']=st.slider('Skin temperature °C min / max',28.0,43.0,(float(t['temp_min']),float(t['temp_max'])),step=.1); t['glucose_min'],t['glucose_max']=st.slider('CGM glucose mg/dL min / max',40,400,(int(t['glucose_min']),int(t['glucose_max'])))
         st.success('Thresholds active for this synthetic patient.')
         st.caption('In a real clinical product, threshold changes would require role-based authorization, clinical governance and audit logging.')
-elif menu.startswith('4 ·'):
+elif menu.startswith('7 ·'):
+    st.header('🏡 Care Coordination')
+    st.caption('Synthetic operational workflow for services that may be needed beyond remote data collection.')
+    if 'service_requests' not in st.session_state: st.session_state.service_requests=[]
+    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}",key='svc_patient')
+    c1,c2=st.columns(2)
+    service=c1.selectbox('Service',['Home nurse visit','Mobile lab / phlebotomy','Device replacement','Mobile imaging','Technical support','DME support','Transportation support'])
+    priority=c2.selectbox('Operational priority',['Routine','Soon','Urgent workflow review'])
+    note=st.text_area('Reason / coordination note')
+    if st.button('Create service request',type='primary'):
+        rec={'Request ID':f"SR-{len(st.session_state.service_requests)+1:03d}",'Patient':PATIENTS[pid]['name'],'Service':service,'Priority':priority,'Status':'Requested','Created':datetime.now().strftime('%b %d, %I:%M %p'),'Note':note}
+        st.session_state.service_requests.append(rec); st.success(f"{rec['Request ID']} created.")
+    rows=[r for r in st.session_state.service_requests if r['Patient']==PATIENTS[pid]['name']]
+    if rows: st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
+
+elif menu.startswith('8 ·'):
     st.header('ECG Documents'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); es=patient_events(pid)
     for e in reversed(es[-4:]):
         with st.expander(f"{e['event_id']} · {e['timestamp'][:16].replace('T',' ')} · {e['ecg']}",expanded=(e==es[-1])):
@@ -370,7 +422,7 @@ elif menu.startswith('4 ·'):
             checks={'Patient name on every page':True,'MRN on every page':e['pdf_ok'],'DOB on every page':True,'ECG timestamp':True,'Patient association':True}; st.dataframe(pd.DataFrame([{'Check':k,'Result':'PASS' if v else 'FAIL'} for k,v in checks.items()]),hide_index=True,use_container_width=True)
             st.success('DOCUMENT VALIDATION PASSED — eligible for downstream transmission.') if e['pdf_ok'] else st.error('DOCUMENT VALIDATION FAILED — held; mock EHR Media filing blocked.')
 
-elif menu.startswith('5 ·'):
+elif menu.startswith('13 ·'):
     st.header('AI Agent'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:PATIENTS[x]['name']); e=latest_for(pid); pri,reasons,score=assess(e); st.metric('Workflow priority',pri); st.progress(min(score/10,1.0))
     st.subheader('Agent-generated review summary'); st.write((f"Latest RPM event {e['event_id']} was prioritized as {pri}. "+' '.join(reasons)+ ' Clinical interpretation and action remain with the clinician.') if reasons else 'No configured workflow exception detected. Continue monitoring according to the care plan.')
     st.dataframe(pd.DataFrame([('Monitoring Agent','Evaluated ECG, vitals, longitudinal trends and questionnaire','COMPLETE'),('Adherence Agent','Checked expected measurement availability','COMPLETE'),('Integration Agent','Prepared structured EHR-ready payload','COMPLETE'),('Document Agent','Validated patient identifiers on ECG PDF','COMPLETE' if e['pdf_ok'] else 'HELD'),('Human-in-the-loop','Clinician outreach/intervention','COMPLETE' if interventions_for_event(e['event_id']) else 'PENDING' if pri!='LOW' else 'NOT REQUIRED')],columns=['Agent / Step','Action','Status']),hide_index=True,use_container_width=True)
@@ -391,7 +443,7 @@ elif menu.startswith('6 ·'):
     st.subheader('Intervention log');
     if st.session_state.interventions: st.dataframe(pd.DataFrame(st.session_state.interventions)[['timestamp','event_id','patient_id','channel','clinician','outcome','status']],hide_index=True,use_container_width=True)
 
-elif menu.startswith('7 ·'):
+elif menu.startswith('3 ·'):
     st.header('💬 Communication Center')
     st.write('Two-way secure-chat and video-call workflow simulator. This demonstrates product behavior; it is not a live telehealth service.')
     pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · Assigned: {PATIENTS[x]['clinician']}"); p=PATIENTS[pid]
@@ -417,7 +469,7 @@ elif menu.startswith('7 ·'):
     vc=[v for v in st.session_state.video_calls if v['patient_id']==pid]
     if vc: st.dataframe(pd.DataFrame(vc),hide_index=True,use_container_width=True)
 
-elif menu.startswith('8 ·'):
+elif menu.startswith('9 ·'):
     st.header('Integration Hub / API'); st.write('Normalized RPM event + EHR-ready FHIR-style transformation. This is a simulation, not a live Epic endpoint.'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); e=latest_for(pid)
     normalized={'eventId':e['event_id'],'patient':PATIENTS[pid],'carePlan':PATIENTS[pid]['care_plan'],'deviceData':{'ecgClassification':e['ecg'],'ecgHeartRate':e['ecg_hr'],'spo2':e['spo2'],'weight':e['weight'],'bloodPressure':{'systolic':e['sys'],'diastolic':e['dia']}},'questionnaire':{'shortnessOfBreath':e['sob'],'chestDiscomfort':e['chest'],'dizziness':e['dizzy'],'medicationTaken':e['meds']},'ecgDocument':{'reportId':e['event_id'],'identifierValidation':'PASS' if e['pdf_ok'] else 'FAIL'}}
     t1,t2,t3=st.tabs(['Normalized RPM JSON','FHIR-style Bundle','Mapping Table'])
@@ -425,7 +477,7 @@ elif menu.startswith('8 ·'):
     with t2: fb=fhir_bundle(e); st.code(json.dumps(fb,indent=2),language='json'); st.download_button('Download EHR-ready FHIR-style JSON',json.dumps(fb,indent=2),file_name=f"{e['event_id']}_fhir.json",mime='application/json')
     with t3: st.dataframe(pd.DataFrame([{'Source':'Pulse oximeter','Field':'SpO₂','LOINC':LOINC['SpO2'],'Destination':'EHR flowsheet / Observation'},{'Source':'ECG device','Field':'Heart rate','LOINC':LOINC['Heart Rate'],'Destination':'EHR flowsheet / Observation'},{'Source':'Scale','Field':'Weight','LOINC':LOINC['Body Weight'],'Destination':'EHR flowsheet / Observation'},{'Source':'BP wearable','Field':'Systolic BP','LOINC':LOINC['Systolic BP'],'Destination':'EHR flowsheet / Observation'},{'Source':'Everion','Field':'Respiratory rate / skin temperature','LOINC':LOINC['Respiratory Rate']+' / '+LOINC['Skin Temperature'],'Destination':'EHR flowsheet / Observation'},{'Source':'Dexcom G7 CGM','Field':'Glucose','LOINC':LOINC['Glucose'],'Destination':'EHR flowsheet / Observation'},{'Source':'ECG report','Field':'PDF','LOINC':'N/A','Destination':'Cloverleaf → OnBase → EHR Media (simulated)'}]),hide_index=True,use_container_width=True)
 
-elif menu.startswith('9 ·'):
+elif menu.startswith('10 ·'):
     st.header('Mock EHR');
     with st.expander('➕ Create Patient / Add New Patient'):
         patient_creation_panel('Mock EHR','ehr')
@@ -442,20 +494,41 @@ elif menu.startswith('9 ·'):
     with t3:
         ints=[x for x in st.session_state.interventions if x['patient_id']==pid]; st.dataframe(pd.DataFrame(ints),hide_index=True,use_container_width=True) if ints else st.caption('No documented communication.')
 
-elif menu.startswith('10 ·'):
+elif menu.startswith('12 ·'):
     st.header('Data Lineage & Audit'); e=st.selectbox('Trace event',events,format_func=lambda x:f"{x['event_id']} · {PATIENTS[x['patient_id']]['name']} · {x['timestamp'][:16].replace('T',' ')}")
     pri,_,_=assess(e); ints=interventions_for_event(e['event_id']); steps=[('1','Patient home',f"ECG={e['ecg']}; SpO₂={e['spo2']}%; weight={e['weight']} lb; questionnaire captured"),('2','Bluetooth / tablet','Connected-device values collected by patient app (simulated)'),('3','Vendor ingestion API','Normalized RPM event accepted'),('4','Clinical dashboard',f'Patient record updated; {pri} workflow priority calculated'),('5','Human intervention',f"{ints[-1]['channel']} — {ints[-1]['status']}" if ints else 'No communication documented yet'),('6','Integration API','LOINC-coded/FHIR-style payload prepared'),('7','Structured EHR path','Vitals and ECG values available in mock flowsheet'),('8','Document path','ECG PDF → Cloverleaf → OnBase → Media simulation' if e['pdf_ok'] else 'ECG PDF HELD because identifier validation failed')]
     for n,title,desc in steps: st.markdown(f'**{n}. {title}**  \n{desc}')
     st.subheader('Session audit log'); st.dataframe(pd.DataFrame(st.session_state.audit),hide_index=True,use_container_width=True) if st.session_state.audit else st.caption('Ingest or document an intervention to populate the live audit log.')
 
-elif menu.startswith('11 ·'):
-    st.header('Architecture & Product Story'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
+elif menu.startswith('14 ·'):
+    st.header('🧭 Care Pathway Engine')
+    st.caption('Configurable synthetic pathways translate a care plan into daily tasks, monitoring cadence, conditional work, and escalation. They are portfolio examples, not validated clinical protocols.')
+    plan=st.selectbox('Care pathway',CARE_PLANS,key='pathway_plan')
+    pathway_map={
+      'Cardiology':['Continuous HR/SpO₂/RR/skin temperature','BP and weight','Daily symptom questionnaire','ECG when scheduled or triggered','Medication check-in','Conditional clinician outreach'],
+      'Cirrhosis / Liver Disease':['SpO₂, BP/HR and weight','Daily liver-disease symptom questionnaire','Medication check-in','Conditional photo/audio sample','Clinician outreach for configured exceptions'],
+      'Hypertension':['BP/HR','Medication check-in','Symptoms questionnaire','Trend review'],
+      'Diabetes / CGM':['Continuous glucose','Medication check-in','Symptoms questionnaire','Trend review'],
+      'Heart Failure':['Weight, BP/HR, SpO₂','Daily symptom questionnaire','Medication check-in','Conditional ECG','Escalation for configured multi-signal exceptions'],
+      'COPD / Pulmonary':['SpO₂ and RR','Daily respiratory questionnaire','Optional cough audio sample','Technical/device adherence review'],
+      'Chronic Kidney Disease':['Weight and BP','Daily symptom questionnaire','Medication check-in','Care-plan review'],
+      'Post-Surgical Recovery':['Vitals','Pain/recovery questionnaire','Optional wound/photo sample','Short-term review cadence']}
+    st.subheader(f'{plan} — Daily/conditional tasks')
+    for x in pathway_map.get(plan,[]): st.write('• '+x)
+    st.subheader('Escalation model')
+    st.write('**Level 1 — Technical:** disconnected device, low battery, missing transmission → troubleshooting/support.')
+    st.write('**Level 2 — RPM team:** symptom response, missing questionnaire, single configured threshold exception → review/outreach.')
+    st.write('**Level 3 — Provider:** persistent or multi-signal exception, device-reported abnormal ECG → provider review.')
+    st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
+
+elif menu.startswith('15 ·'):
+    st.header('🏗️ Architecture & Product Story'); st.info('V2.6 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
     st.write('**MVP epics:** validated patient registration + MPI duplicate prevention · care-plan enrollment duration/review · care-plan-specific daily questionnaires · patient-generated audio/image samples · timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
 
 
-if menu.startswith('12 ·'):
+elif menu.startswith('11 ·'):
     st.header('🧬 Patient Identity & Duplicate Prevention')
     st.write('Both the Clinical Dashboard and Mock EHR creation buttons call the same shared Master Patient Index (MPI) service in this prototype. That means there is one patient registry, not two independent patient lists.')
     st.subheader('Demo matching logic')
