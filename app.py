@@ -8,8 +8,9 @@ import fitz
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
+from reportlab.lib import colors
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v3.2', page_icon=':material/monitor_heart:', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v3.3', page_icon=':material/monitor_heart:', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -183,6 +184,8 @@ if 'messages' not in st.session_state:
 if 'video_calls' not in st.session_state: st.session_state.video_calls=[]
 if 'education_assignments' not in st.session_state: st.session_state.education_assignments=[]
 if 'questionnaire_assignments' not in st.session_state: st.session_state.questionnaire_assignments=[]
+if 'transition_workflow' not in st.session_state: st.session_state.transition_workflow={}
+if 'kit_orders' not in st.session_state: st.session_state.kit_orders=[]
 
 events=st.session_state.events
 # Ensure every demo care pathway has at least one patient with 7 days of normal/alert examples.
@@ -226,24 +229,35 @@ def alert_status(e):
 
 def ecg_pdf_bytes(e, valid=True):
     p=PATIENTS[e['patient_id']]; buf=io.BytesIO(); c=canvas.Canvas(buf,pagesize=letter); W,H=letter
+    teal=colors.HexColor('#087F8C'); blue=colors.HexColor('#2F80ED'); navy=colors.HexColor('#183153'); pale=colors.HexColor('#F3FAFB'); grid=colors.HexColor('#D8EEF0')
     for page in range(1,3):
-        c.setFont('Helvetica-Bold',10); ident=f"Patient: {p['name']}   |   MRN: {p['mrn']}   |   DOB: {p['dob']}"
+        c.setFillColor(pale); c.roundRect(.35*inch,H-1.35*inch,7.8*inch,.9*inch,12,fill=1,stroke=0)
+        c.setFillColor(navy); c.setFont('Helvetica-Bold',10); ident=f"Patient: {p['name']}   |   MRN: {p['mrn']}   |   DOB: {p['dob']}"
         if not valid and page==2: ident=f"Patient: {p['name']}   |   MRN: [MISSING]   |   DOB: {p['dob']}"
-        c.drawString(.55*inch,H-.45*inch,ident); c.setFont('Helvetica-Bold',16); c.drawString(.55*inch,H-.85*inch,'Synthetic 6-Lead ECG Demonstration Report')
-        c.setFont('Helvetica',9); c.drawString(.55*inch,H-1.08*inch,'Portfolio prototype — simulated waveform; not a diagnostic ECG report.')
-        c.setFont('Helvetica',10); c.drawString(.55*inch,H-1.4*inch,f"Recording ID: {e['event_id']}   Recorded: {e['timestamp'][:16].replace('T',' ')}")
-        c.drawString(.55*inch,H-1.62*inch,f"Device-reported classification: {e['ecg']}   Heart rate: {e['ecg_hr']} bpm")
+        c.drawString(.55*inch,H-.68*inch,ident); c.setFillColor(teal); c.setFont('Helvetica-Bold',17); c.drawString(.55*inch,H-1.05*inch,'6-Lead ECG Result')
+        c.setFillColor(navy); c.setFont('Helvetica',8.5); c.drawString(.55*inch,H-1.28*inch,'Synthetic portfolio report • device-reported classification • clinician review required')
+        c.setFont('Helvetica-Bold',9); c.drawString(.55*inch,H-1.62*inch,f"Recording {e['event_id']}")
+        c.setFont('Helvetica',9); c.drawString(2.1*inch,H-1.62*inch,f"{e['timestamp'][:16].replace('T',' ')}   •   HR {e['ecg_hr']} bpm   •   {e['ecg']}")
+        c.setFillColor(blue); c.roundRect(.55*inch,H-2.08*inch,2.1*inch,.28*inch,6,fill=1,stroke=0); c.setFillColor(colors.white); c.setFont('Helvetica-Bold',8); c.drawCentredString(1.6*inch,H-1.985*inch,'DEVICE-REPORTED RESULT')
+        c.setFillColor(navy); c.setFont('Helvetica',8); c.drawString(2.85*inch,H-1.98*inch,'Leads: I, II, III, aVR, aVL, aVF   |   Signal quality: Good (synthetic)')
         for i,lead in enumerate(['I','II','III','aVR','aVL','aVF']):
-            y=H-2.05*inch-i*.72*inch; c.setFont('Helvetica-Bold',9); c.drawString(.55*inch,y+.15*inch,lead); c.setLineWidth(.3); c.line(.9*inch,y,7.8*inch,y)
+            y=H-2.55*inch-i*.70*inch; x0=.95*inch; x1=7.85*inch
+            c.setStrokeColor(grid); c.setLineWidth(.25)
+            for gx in range(0,35): c.line(x0+gx*.2*inch,y-.24*inch,x0+gx*.2*inch,y+.28*inch)
+            for gy in range(-2,4): c.line(x0,y+gy*.1*inch,x1,y+gy*.1*inch)
+            c.setFillColor(teal); c.setFont('Helvetica-Bold',9); c.drawString(.55*inch,y+.05*inch,lead)
             pts=[]
             for x in range(620):
-                xx=.9*inch+x*.011*inch; phase=(x%70)/70; val=2.5*math.sin(x/8)
+                xx=x0+x*.011*inch; phase=(x%70)/70; val=2.2*math.sin(x/8)
                 if .43<phase<.47: val+=18*(1-abs(phase-.45)/.02)
                 if .47<=phase<.50: val-=9*(1-abs(phase-.485)/.015)
                 pts.append((xx,y+val*(-1 if lead=='aVR' else 1)))
-            c.setLineWidth(.7)
+            c.setStrokeColor(blue if i%2==0 else teal); c.setLineWidth(.85)
             for a,b in zip(pts[:-1],pts[1:]): c.line(a[0],a[1],b[0],b[1])
-        c.setFont('Helvetica-Oblique',8); c.drawString(.55*inch,.45*inch,f'Page {page} of 2 | SYNTHETIC DATA ONLY | Human review required'); c.showPage()
+        c.setFillColor(navy); c.setFont('Helvetica-Bold',8.5); c.drawString(.55*inch,.92*inch,'Research-ready fields preserved:')
+        c.setFont('Helvetica',8); c.drawString(.55*inch,.72*inch,'recording timestamp • heart rate • device classification • lead set • signal quality • clinician review status')
+        c.drawString(.55*inch,.55*inch,'QT/QTc may be captured when measured/reviewed by an authorized clinician; this synthetic report does not calculate QT/QTc.')
+        c.setFont('Helvetica-Oblique',7.5); c.drawString(.55*inch,.32*inch,f'Page {page} of 2 | SYNTHETIC DATA ONLY | Not a diagnostic ECG report'); c.showPage()
     c.save(); return buf.getvalue()
 
 def fhir_bundle(e):
@@ -266,7 +280,7 @@ def device_table(pid):
 
 def _trend_icon(field):
     icons={
-      'spo2':'<svg viewBox="0 0 24 24" fill="none"><path d="M4 12h3l2-5 4 10 2-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      'spo2':'<svg viewBox="0 0 24 24" fill="none"><rect x="5" y="4" width="14" height="16" rx="5" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="10" r="2.3" stroke="currentColor" stroke-width="1.8"/><path d="M9 15h6M10.5 17h3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
       'ecg_hr':'<svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l2-6 4 12 3-7 2 3h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       'weight':'<svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14l2 13H3L5 7Z" stroke="currentColor" stroke-width="2"/><path d="M9 7a3 3 0 0 1 6 0" stroke="currentColor" stroke-width="2"/></svg>',
       'rr':'<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M12 12c-2-4-7-5-8-1-1 5 3 8 8 8M12 12c2-4 7-5 8-1 1 5-3 8-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
@@ -345,12 +359,15 @@ def questionnaire_for(plan):
 
 def spirometry_pdf_bytes(e):
     p=PATIENTS[e['patient_id']]; buf=io.BytesIO(); c=canvas.Canvas(buf,pagesize=letter); W,H=letter
+    teal=colors.HexColor('#087F8C'); blue=colors.HexColor('#2F80ED'); navy=colors.HexColor('#183153'); pale=colors.HexColor('#F3FAFB'); aqua=colors.HexColor('#42BFC7')
     fev1=float(e.get('fev1') or 0); fvc=float(e.get('fvc') or 0); ratio=(fev1/fvc if fvc else 0); pef=float(e.get('pef') or 0)
     # Synthetic reference fields are intentionally illustrative; this portfolio does not calculate clinical reference equations.
     pred_fev1=float(p.get('baseline_fev1',max(fev1,2.4))); pred_fvc=max(3.2,pred_fev1/0.78); lln_fev1=pred_fev1*0.80; lln_fvc=pred_fvc*0.80; lln_ratio=0.70
     def z(actual,pred): return (actual-pred)/(max(pred*.12,.15))
-    c.setFont('Helvetica-Bold',10); c.drawString(.45*inch,H-.4*inch,f"Patient: {p['name']}   |   MRN: {p['mrn']}   |   DOB: {p['dob']}")
-    c.setFont('Helvetica-Bold',15); c.drawString(.45*inch,H-.75*inch,'Synthetic Home Spirometry Result')
+    c.setFillColor(pale); c.roundRect(.35*inch,H-1.30*inch,7.8*inch,.95*inch,12,fill=1,stroke=0)
+    c.setFillColor(navy); c.setFont('Helvetica-Bold',10); c.drawString(.45*inch,H-.4*inch,f"Patient: {p['name']}   |   MRN: {p['mrn']}   |   DOB: {p['dob']}")
+    c.setFillColor(teal); c.setFont('Helvetica-Bold',17); c.drawString(.45*inch,H-.75*inch,'Home Spirometry Result')
+    c.setFillColor(navy)
     c.setFont('Helvetica',8.5); c.drawString(.45*inch,H-.98*inch,'Portfolio demonstration patterned after standardized PFT-report concepts; synthetic values/reference ranges; not for diagnosis.')
     c.drawString(.45*inch,H-1.18*inch,f"Recording: {e['event_id']}   Date/time: {e['timestamp'][:16].replace('T',' ')}   Quality: {e.get('spirometry_quality','Simulated maneuver')}")
     # table
@@ -373,10 +390,12 @@ def spirometry_pdf_bytes(e):
     pts=[]
     for i in range(100):
         frac=i/99; vol=fvc*frac; flow=(pef/60.0)*(1-math.exp(-frac*28))*math.exp(-frac*2.0); pts.append((fx+(vol/max(fvc,1))*fw,fy+(flow/max(pef/60.0,1))*fh))
+    c.setStrokeColor(blue); c.setLineWidth(1.4)
     for a,b in zip(pts[:-1],pts[1:]): c.line(a[0],a[1],b[0],b[1])
     insp=[]
     for i in range(100):
         frac=i/99; vol=fvc*(1-frac); flow=-0.45*(pef/60.0)*math.sin(math.pi*frac); insp.append((fx+(vol/max(fvc,1))*fw,fy+(flow/max(pef/60.0,1))*fh))
+    c.setStrokeColor(teal); c.setLineWidth(1.2)
     for a,b in zip(insp[:-1],insp[1:]): c.line(a[0],a[1],b[0],b[1])
     # Volume-time curve
     tx=4.35*inch; ty=fy; tw=3.0*inch; th=1.65*inch
@@ -385,6 +404,7 @@ def spirometry_pdf_bytes(e):
     vt=[]
     for i in range(121):
         t=6*i/120; vol=fvc*(1-math.exp(-t/0.85)); vt.append((tx+(t/6)*tw,ty+(vol/max(fvc,1))*th))
+    c.setStrokeColor(aqua); c.setLineWidth(1.5)
     for a,b in zip(vt[:-1],vt[1:]): c.line(a[0],a[1],b[0],b[1])
     c.setFont('Helvetica-Bold',9); c.drawString(.45*inch,1.15*inch,'Workflow flag:')
     flag='Review — FEV1 below configured personal-baseline alert limit.' if e.get('fev1_pct_baseline',100)<st.session_state.thresholds[e['patient_id']].get('fev1_pct_min',80) else 'Routine monitoring — no configured FEV1 baseline exception.'
@@ -426,7 +446,7 @@ def show_pdf_inline(pdf_bytes,height=760):
 
 def education_for(plan): return EDUCATION_LIBRARY.get(plan,[])
 
-# --- V3.2 synthetic discharge-to-RPM candidate registry ---
+# --- V3.3 synthetic discharge-to-RPM candidate registry ---
 DISCHARGE_CANDIDATES=[
  {'patient':'Avery Johnson','mrn':'ACUTE-2001','care_plan':'Heart Failure','discharge':'Today','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Recent HF admission; weight/BP/HR/SpO2 trending useful after discharge.'},
  {'patient':'Noah Williams','mrn':'ACUTE-2002','care_plan':'Hypertension','discharge':'Tomorrow','condition_fit':3,'measurable':2,'transition_risk':1,'management_need':2,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Medication change with need for home BP trend review.'},
@@ -439,6 +459,33 @@ DISCHARGE_CANDIDATES=[
  {'patient':'Mia Anderson','mrn':'ACUTE-2009','care_plan':'Respiratory Infection - Adult','discharge':'Tomorrow','condition_fit':2,'measurable':2,'transition_risk':1,'management_need':1,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Short-term oxygen/temperature/symptom monitoring may support recovery.'},
  {'patient':'Lucas Thomas','mrn':'ACUTE-2010','care_plan':'Coronary Artery Disease (CAD)','discharge':'2 days','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':0,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Clinical fit exists, but patient has not consented to RPM.'}
 ]
+# Care-path-specific demo kit configuration. These are portfolio defaults, not universal clinical requirements.
+KIT_MATRIX={
+ 'Heart Failure':['Connected scale','Blood pressure monitor','Pulse oximeter','RPM tablet / gateway'],
+ 'Hypertension':['Blood pressure monitor','RPM tablet / gateway'],
+ 'Lung Transplant':['Home spirometer','Pulse oximeter','Connected scale','Blood pressure monitor','RPM tablet / gateway'],
+ 'COPD / Pulmonary':['Pulse oximeter','Home spirometer','RPM tablet / gateway'],
+ 'Joint / Knee Replacement':['Digital thermometer','RPM tablet / gateway'],
+ 'Diabetes / CGM':['CGM starter supplies','Blood pressure monitor','RPM tablet / gateway'],
+ 'Acute Kidney Injury (AKI)':['Connected scale','Blood pressure monitor','RPM tablet / gateway'],
+ 'Cardiology':['6-lead ECG device','Blood pressure monitor','Connected scale','Pulse oximeter / wearable','RPM tablet / gateway'],
+ 'Respiratory Infection - Adult':['Pulse oximeter','Digital thermometer','RPM tablet / gateway'],
+ 'Coronary Artery Disease (CAD)':['Blood pressure monitor','Connected scale','6-lead ECG device when ordered','RPM tablet / gateway']}
+def kit_for(plan): return KIT_MATRIX.get(plan,['Blood pressure monitor','Pulse oximeter','RPM tablet / gateway'])
+def transition_state(mrn):
+    return st.session_state.transition_workflow.setdefault(mrn,{'enrollment_status':'Candidate','kit_status':'Not configured','delivery_method':'Ship to home','activation_status':'Not started','patient_id':None})
+def enroll_candidate(r):
+    wf=transition_state(r['mrn'])
+    if wf.get('patient_id') and wf['patient_id'] in PATIENTS: return wf['patient_id']
+    n=1000+len(PATIENTS)+1; pid=f'SYN-{n}'
+    PATIENTS[pid]={'name':r['patient'],'clinician':'Dr. Aisha Morgan','mrn':f'SYN-MRN-{n}','dob':'1965-01-01','care_plan':r['care_plan'],'baseline_spo2':97,'baseline_weight':170.0,'baseline_hr':74,'address':'200 Transition Home Way','city':'Austin','state':'TX','zip':'78701','phone':'512-555-0200','email':'','insurance':'Demo Health Plan','member_id':f'DEMO-{n}','next_of_kin':'Synthetic Family Contact','nok_relationship':'Family','nok_phone':'512-555-0199','program_duration':'Clinician-defined','next_review_date':'Clinician-defined'}
+    st.session_state.devices[pid]=[]
+    for d in kit_for(r['care_plan']): st.session_state.devices[pid].append({'device':d,'type':'Care-path kit device','connected':False,'battery':100,'wifi':False})
+    st.session_state.thresholds[pid]=default_thresholds(PATIENTS[pid])
+    wf['patient_id']=pid; wf['enrollment_status']='Enrolled'; wf['activation_status']='Setup pending'
+    st.session_state.audit.append({'time':datetime.now().strftime('%H:%M:%S'),'event_id':r['mrn'],'step':'RPM enrollment created from transition queue','status':'SUCCESS'})
+    return pid
+
 def fit_score(r): return sum(r[k] for k in ['condition_fit','measurable','transition_risk','management_need','willing','support','connectivity','team_capacity'])
 def fit_bucket(r):
     if r['hard_stop'] or not r['willing']: return 'NOT CURRENTLY FIT'
@@ -473,7 +520,7 @@ div[data-testid="stSelectbox"] label p{font-size:.78rem!important;font-weight:65
 .role-chip{font-size:.88rem;font-weight:600}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.2</span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.3</span></div>''', unsafe_allow_html=True)
     st.subheader('🔐 Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -484,7 +531,7 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.2</span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.3</span></div>''', unsafe_allow_html=True)
 st.caption(f'Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data • Signed in as {CURRENT_USER} ({CURRENT_ROLE})')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center','3A · Education Center']
@@ -571,7 +618,7 @@ elif menu.startswith('2 ·'):
             target['questionnaire']=answers; target['sob']=answers.get('sob')=='Yes'; target['chest']=answers.get('chest')=='Yes'; target['dizzy']=answers.get('dizzy')=='Yes'; target['meds']=answers.get('meds')=='Yes'; log(target['event_id'],'Daily questionnaire submitted'); st.success('Daily questionnaire saved to the latest patient event.')
         else: st.warning('Save today’s readings first, then save the questionnaire.')
 
-    st.subheader(':material/multimedia: Patient Samples')
+    st.subheader(':material/photo_library: Patient Samples')
     st.caption('Optional patient-generated media. Samples use their own save action and are routed to the clinical review queue.')
     audio_sample=st.audio_input('Record cough / breathing audio (optional)')
     image_sample=st.camera_input('Take a patient photo / symptom image (optional)')
@@ -685,7 +732,7 @@ elif menu.startswith('4 ·'):
     if clinical_samples:
         pending=[m for m in clinical_samples if not m.get('reviewed',False)]
         if pending: st.error(f"🎙️📷 {len(pending)} NEW patient sample(s) require clinical review.")
-        st.subheader(':material/multimedia: Patient Samples — Clinical Review')
+        st.subheader(':material/photo_library: Patient Samples — Clinical Review')
         for m in reversed(clinical_samples):
             status='NEW — review required' if not m.get('reviewed',False) else 'Reviewed'
             st.write(f"**{m['sample_id']} · {m['type']} · {status}**  |  {m['timestamp'][:16].replace('T',' ')}  |  {m['note'] or 'No note'}")
@@ -714,33 +761,45 @@ elif menu.startswith('4A ·'):
             st.session_state.questionnaire_assignments.append({'assignment_id':f'Q-{len(st.session_state.questionnaire_assignments)+1:03d}','patient_id':pid,'plan':plan,'assigned_by':PATIENTS[pid]['clinician'],'assigned_at':datetime.now().isoformat(),'completed':False}); st.success('Ad-hoc questionnaire sent to patient.')
 
 elif menu.startswith('4B ·'):
-    st.header(':material/clinical_notes: RPM Fit & Transition Queue')
-    st.caption('Synthetic discharge-candidate registry for identifying patients who may benefit from RPM after an acute-care stay. This is portfolio decision support—not a validated clinical score, coverage determination, or autonomous enrollment tool.')
-    st.info('The score identifies and segments candidates; a clinician/care team confirms medical necessity, patient consent, device readiness, safety, and the appropriate care pathway before enrollment.')
+    st.header(':material/clinical_notes: RPM Fit, Enrollment & Kit Transition')
+    st.caption('Synthetic discharge-candidate workflow: identify potential RPM fit, complete human enrollment review, configure only the devices required by the selected care path, fulfill the kit, and activate monitoring.')
+    st.info('A high Fit Score never auto-enrolls a patient. Clinical stability, medical necessity, consent, device/digital readiness and human confirmation remain required.')
     rows=[]
     for r in DISCHARGE_CANDIDATES:
-        score=fit_score(r); bucket=fit_bucket(r)
-        rows.append({'Fit':'● '+bucket,'Score':score,'Patient':r['patient'],'MRN':r['mrn'],'Expected discharge':r['discharge'],'Suggested care plan':r['care_plan'],'Why flagged':r['reason']})
-    df=pd.DataFrame(rows)
-    q=st.text_input('Search transition queue',placeholder='Patient, MRN, care plan, discharge timing, reason…')
-    b=st.multiselect('Fit segment',['RPM FIT','REVIEW / ENABLE','NOT CURRENTLY FIT'],default=['RPM FIT','REVIEW / ENABLE','NOT CURRENTLY FIT'])
-    plans=st.multiselect('Care plan',sorted({r['care_plan'] for r in DISCHARGE_CANDIDATES}))
+        score=fit_score(r); bucket=fit_bucket(r); wf=transition_state(r['mrn'])
+        rows.append({'Fit':'● '+bucket,'Score':score,'Patient':r['patient'],'MRN':r['mrn'],'Expected discharge':r['discharge'],'Suggested care plan':r['care_plan'],'Enrollment':wf['enrollment_status'],'Kit':wf['kit_status'],'Activation':wf['activation_status'],'Why flagged':r['reason']})
+    df=pd.DataFrame(rows); q=st.text_input('Search transition queue',placeholder='Patient, MRN, care plan, status, discharge timing…')
     if q: df=df[df.astype(str).apply(lambda x:x.str.contains(q,case=False,na=False)).any(axis=1)]
-    if b: df=df[df['Fit'].str.replace('● ','',regex=False).isin(b)]
-    if plans: df=df[df['Suggested care plan'].isin(plans)]
     order={'● RPM FIT':0,'● REVIEW / ENABLE':1,'● NOT CURRENTLY FIT':2}; df['_order']=df['Fit'].map(order); df=df.sort_values(['_order','Score'],ascending=[True,False]).drop(columns='_order')
     st.dataframe(df,hide_index=True,use_container_width=True,column_config={'Fit':st.column_config.TextColumn('RPM Fit Segment'),'Score':st.column_config.NumberColumn('Fit Score',format='%d / 13')})
+    st.subheader(':material/local_shipping: Enrollment, kit fulfillment & activation')
+    chosen=st.selectbox('Transition candidate',range(len(DISCHARGE_CANDIDATES)),format_func=lambda i:f"{DISCHARGE_CANDIDATES[i]['patient']} · {DISCHARGE_CANDIDATES[i]['mrn']} · {DISCHARGE_CANDIDATES[i]['care_plan']}")
+    r=DISCHARGE_CANDIDATES[chosen]; wf=transition_state(r['mrn']); score=fit_score(r); bucket=fit_bucket(r)
+    a,b,c,d=st.columns(4); a.metric('Fit segment',bucket); b.metric('Fit score',f'{score}/13'); c.metric('Discharge',r['discharge']); d.metric('Enrollment',wf['enrollment_status'])
+    st.markdown('#### Care-path kit configuration')
+    st.caption('Portfolio defaults are configurable. ECG and spirometry are included only when appropriate to the selected pathway/order—not in every RPM kit.')
+    devices=st.multiselect('Devices / supplies for this patient',kit_for(r['care_plan']),default=kit_for(r['care_plan']),key='kit_'+r['mrn'])
+    method=st.radio('Fulfillment method',['Ship to home','Provide during acute-care discharge'],horizontal=True,index=0 if wf['delivery_method']=='Ship to home' else 1,key='delivery_'+r['mrn']); wf['delivery_method']=method
+    if method=='Ship to home': st.info('Demo ship-to address will be verified before fulfillment: 200 Transition Home Way, Austin, TX 78701.')
+    enrollment_options=['Candidate','Under review','Patient contacted','Consent obtained','Ready to enroll','Enrolled','Deferred','Declined','Not eligible']
+    wf['enrollment_status']=st.selectbox('Enrollment status',enrollment_options,index=enrollment_options.index(wf['enrollment_status']) if wf['enrollment_status'] in enrollment_options else 0,key='enroll_status_'+r['mrn'])
+    kit_options=['Not configured','Configured','Order created','Packed','Shipped','In transit','Delivered','Patient confirmed receipt','Prepared for discharge','Given at discharge','Device missing / issue','Replacement requested']
+    wf['kit_status']=st.selectbox('Kit fulfillment status',kit_options,index=kit_options.index(wf['kit_status']) if wf['kit_status'] in kit_options else 0,key='kit_status_'+r['mrn'])
+    activation_options=['Not started','Setup pending','Setup started','Devices paired','Training completed','Test reading received','Active monitoring','Needs technical support']
+    wf['activation_status']=st.selectbox('Activation status',activation_options,index=activation_options.index(wf['activation_status']) if wf['activation_status'] in activation_options else 0,key='activation_'+r['mrn'])
+    c1,c2=st.columns(2)
+    with c1:
+        if st.button(':material/local_shipping: Save kit / fulfillment',type='primary',use_container_width=True):
+            st.session_state.kit_orders.append({'mrn':r['mrn'],'patient':r['patient'],'care_plan':r['care_plan'],'devices':devices,'method':method,'kit_status':wf['kit_status'],'time':datetime.now().isoformat()}); st.success('Kit configuration and fulfillment status saved to the transition workflow.')
+    with c2:
+        if st.button(':material/person_add: Enroll in RPM & add to My Patients',use_container_width=True,disabled=(bucket=='NOT CURRENTLY FIT' or wf['enrollment_status'] not in ['Ready to enroll','Enrolled'])):
+            pid=enroll_candidate(r); st.success(f"{r['patient']} is now in the shared RPM patient registry as {PATIENTS[pid]['mrn']}. Patient 360 will show the patient immediately; trends begin after the first device reading.")
+    if wf.get('patient_id'): st.success(f"Active RPM registry link: {PATIENTS[wf['patient_id']]['name']} · {PATIENTS[wf['patient_id']]['mrn']} · {PATIENTS[wf['patient_id']]['care_plan']}")
+    st.markdown('#### Operational journey')
+    st.write('Candidate → Under review → Consent obtained → Ready to enroll → Enrolled → Kit configured → Shipped / Given at discharge → Patient received kit → Devices paired → Training completed → Test reading received → Active monitoring')
     st.subheader(':material/rule: Illustrative RPM Fit Score')
-    st.markdown("""**Maximum 13 points.** The model intentionally separates clinical opportunity from practical readiness.  
-**Condition suitable for RPM (0–3):** acute/chronic condition where home monitoring can support management.  
-**Measurable physiologic signal (0–2):** useful home device data such as BP, weight, glucose, SpO2, HR, or spirometry.  
-**Transition/readmission risk (0–2):** recent acute-care discharge or higher need for close follow-up.  
-**Active management need (0–2):** trend review could inform outreach, treatment follow-up, or escalation.  
-**Patient willingness/consent (0–1)** · **ability/caregiver support (0–1)** · **connectivity/device readiness (0–1)** · **RPM team capacity (0–1)**.""")
-    st.markdown("""**Prototype segmentation:** **9–13 = RPM FIT**, **6–8 = REVIEW / ENABLE**, **0–5 = NOT CURRENTLY FIT**. A hard-stop safety condition or lack of patient consent prevents enrollment regardless of numeric score. These cut points are synthetic product-design assumptions and require clinical validation before real use.""")
-    st.subheader(':material/fact_check: Human enrollment gate')
-    st.write('Candidate identified → clinician confirms stability and medical necessity → patient consents → device/digital-readiness check → care plan selected → assigned RPM team capacity confirmed → enroll. Patients needing acute evaluation remain in the appropriate acute-care workflow rather than being routed to RPM.')
-    st.caption('Evidence basis for the concept: CMS recognizes RPM for acute or chronic conditions requiring monitoring; HHS describes heart disease/hypertension, diabetes, pulmonary conditions, post-surgical recovery and cancer care as common use cases and recommends considering patient interest and continued device use; AHRQ highlights the vulnerability of hospital-to-home transitions and digital-literacy support.')
+    st.markdown('**Maximum 13 points.** Condition fit (0–3) + measurable physiologic signal (0–2) + transition/readmission need (0–2) + active management need (0–2) + willingness/consent (0–1) + ability/caregiver support (0–1) + connectivity/device readiness (0–1) + RPM team capacity (0–1).')
+    st.caption('Prototype segmentation: 9–13 RPM FIT; 6–8 REVIEW / ENABLE; 0–5 NOT CURRENTLY FIT. Synthetic design assumptions; validation and governance are required before production use.')
 
 elif menu.startswith('5 ·'):
     st.header('👤 Patient 360 & Trends')
@@ -768,18 +827,18 @@ elif menu.startswith('5 ·'):
             _sp=[x for x in patient_events(pid)[-7:] if x.get('fev1') is not None]
             if _sp:
                 latest_sp=_sp[-1]
-                if sb.button('📄 Result PDF',key='spiro_pdf_'+pid,use_container_width=True): st.session_state['show_spiro_pdf_'+pid]=not st.session_state.get('show_spiro_pdf_'+pid,False)
+                if sb.button(':material/description: View result',key='spiro_pdf_'+pid,use_container_width=True): st.session_state['show_spiro_pdf_'+pid]=not st.session_state.get('show_spiro_pdf_'+pid,False)
                 _df=pd.DataFrame([{'Date':x['timestamp'][:10],'FEV1 (L)':round(x['fev1'],2),'FVC (L)':round(x['fvc'],2),'FEV1/FVC':round(x['fev1']/x['fvc'],2),'PEF (L/min)':round(x['pef'],0),'FEV1 % personal baseline':round(x['fev1_pct_baseline'],0)} for x in reversed(_sp)]); st.line_chart(_df.set_index('Date')[['FEV1 (L)','FVC (L)']]); st.dataframe(_df,hide_index=True,use_container_width=True)
                 if st.session_state.get('show_spiro_pdf_'+pid,False):
-                    _pdf=spirometry_pdf_bytes(latest_sp); show_pdf_inline(_pdf); st.download_button('⬇️ Download Spirometry PDF',_pdf,file_name=f"{latest_sp['event_id']}_spirometry.pdf",mime='application/pdf',key='dl_spiro_'+pid)
+                    _pdf=spirometry_pdf_bytes(latest_sp); show_pdf_inline(_pdf); st.download_button(':material/download: Download PDF',_pdf,file_name=f"{latest_sp['event_id']}_spirometry.pdf",mime='application/pdf',key='dl_spiro_'+pid)
                 st.caption('Synthetic home-spirometry values. The alert engine compares FEV1 with the patient’s synthetic personal baseline; this is a portfolio rule, not a diagnostic criterion.')
         with st.container(border=True):
           eh,eb=st.columns([4,1]); eh.markdown('<div class="trend-head"><span>⌁</span><span>ECG Classification History</span></div>',unsafe_allow_html=True)
-        if eb.button('📄 Result PDF',key='ecg_pdf_trend_'+pid,use_container_width=True): st.session_state['show_ecg_pdf_'+pid]=not st.session_state.get('show_ecg_pdf_'+pid,False)
+        if eb.button(':material/description: View result',key='ecg_pdf_trend_'+pid,use_container_width=True): st.session_state['show_ecg_pdf_'+pid]=not st.session_state.get('show_ecg_pdf_'+pid,False)
         st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in reversed(patient_events(pid)[-7:])]),hide_index=True,use_container_width=True)
         if st.session_state.get('show_ecg_pdf_'+pid,False):
-            _epdf=ecg_pdf_bytes(e,e.get('pdf_ok',True)); show_pdf_inline(_epdf); st.download_button('⬇️ Download ECG PDF',_epdf,file_name=f"{e['event_id']}_ecg.pdf",mime='application/pdf',key='dl_ecg_'+pid)
-        st.subheader(':material/multimedia: Patient Samples')
+            _epdf=ecg_pdf_bytes(e,e.get('pdf_ok',True)); show_pdf_inline(_epdf); st.download_button(':material/download: Download PDF',_epdf,file_name=f"{e['event_id']}_ecg.pdf",mime='application/pdf',key='dl_ecg_'+pid)
+        st.subheader(':material/photo_library: Patient Samples')
         ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
         if ps:
             st.dataframe(pd.DataFrame([{'Sample ID':m['sample_id'],'Date/Time':m['timestamp'][:16].replace('T',' '),'Type':m['type'],'Note':m['note'],'Linked event':m['event_id']} for m in ps]),hide_index=True,use_container_width=True)
@@ -945,7 +1004,7 @@ elif menu.startswith('14 ·'):
     st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
 
 elif menu.startswith('15 ·'):
-    st.header(':material/account_tree: Architecture & Product Story'); st.info('V3.2 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
+    st.header(':material/account_tree: Architecture & Product Story'); st.info('V3.3 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
     st.write('**MVP epics:** validated patient registration + MPI duplicate prevention · care-plan enrollment duration/review · care-plan-specific daily + ad-hoc questionnaires · bite-sized patient education completion · patient-generated audio/image samples · home spirometry + PDF · timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
