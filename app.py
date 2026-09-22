@@ -7,7 +7,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v2.3', page_icon='🫀', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v2.4', page_icon='🫀', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -15,6 +15,64 @@ PATIENTS = {
     'SYN-1003': {'name':'Elena Garcia','clinician':'Dr. John Doe','mrn':'SYN-MRN-1003','dob':'1971-03-28','care_plan':'Cardiology','baseline_spo2':98,'baseline_weight':151.4,'baseline_hr':70},
     'SYN-1004': {'name':'Robert Chen','clinician':'Dr. Samuel Lee','mrn':'SYN-MRN-1004','dob':'1967-08-09','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':176.8,'baseline_hr':72},
 }
+
+# Persist a shared patient registry so patient creation from either the Clinical Dashboard
+# or Mock EHR writes to the same Master Patient Index (MPI) in this demo session.
+if 'patients' not in st.session_state:
+    for _pid,_p in PATIENTS.items():
+        _p.update({'address':'100 Demo Way','city':'Austin','state':'TX','zip':'78701','phone':f'512-555-{1000+int(_pid[-1]):04d}','email':'','insurance':'Demo Health Plan','member_id':f'DEMO-{_pid[-4:]}','next_of_kin':'Synthetic Family Contact','nok_relationship':'Family','nok_phone':'512-555-0199'})
+    st.session_state.patients = PATIENTS
+PATIENTS = st.session_state.patients
+
+CARE_PLANS=['Cardiology','Cirrhosis / Liver Disease','Hypertension','Diabetes / CGM','Heart Failure','COPD / Pulmonary','Chronic Kidney Disease','Post-Surgical Recovery']
+CLINICIANS=['Dr. John Doe','Dr. Aisha Morgan','Dr. Samuel Lee','Dr. Elena Rivera']
+
+def norm_text(v): return ''.join(ch.lower() for ch in str(v).strip() if ch.isalnum())
+def next_patient_ids():
+    nums=[int(k.split('-')[-1]) for k in PATIENTS if k.startswith('SYN-') and k.split('-')[-1].isdigit()]
+    n=max(nums+[1000])+1
+    return f'SYN-{n}', f'SYN-MRN-{n}'
+def find_duplicate(first,last,dob,phone):
+    name=norm_text(first+last); ph=norm_text(phone)
+    exact=[]; possible=[]
+    for pid,p in PATIENTS.items():
+        pname=norm_text(p.get('name','')); pdob=str(p.get('dob','')); pphone=norm_text(p.get('phone',''))
+        if pname==name and pdob==str(dob) and ph and pphone==ph: exact.append(pid)
+        elif pname==name and pdob==str(dob): possible.append(pid)
+    return exact,possible
+
+def setup_new_patient(pid):
+    p=PATIENTS[pid]
+    st.session_state.thresholds[pid]={'spo2_min':92,'spo2_max':100,'hr_min':50,'hr_max':110,'weight_min':80.0,'weight_max':350.0,'sys_min':90,'sys_max':160,'dia_min':50,'dia_max':100,'rr_min':10,'rr_max':24,'temp_min':34.0,'temp_max':38.0,'glucose_min':70,'glucose_max':180}
+    common=[{'device':'KardiaMobile 6L','type':'ECG · individual','connected':True,'battery':100,'wifi':True},{'device':'Dexcom G7 CGM','type':'Glucose · continuous','connected':True,'battery':100,'wifi':True},{'device':'RPM Tablet','type':'Gateway','connected':True,'battery':100,'wifi':True}]
+    if p['care_plan']=='Cardiology': care=[{'device':'Everion','type':'Continuous · HR / SpO₂ / RR / skin temperature','connected':True,'battery':100,'wifi':True},{'device':'Welch Allyn BP Device','type':'Individual · BP','connected':True,'battery':100,'wifi':True},{'device':'Welch Allyn Weighing Device','type':'Individual · weight','connected':True,'battery':100,'wifi':True}]
+    else: care=[{'device':'Nonin Pulse Oximeter','type':'Individual · SpO₂','connected':True,'battery':100,'wifi':True},{'device':'Welch Allyn BP Device','type':'Individual · BP / HR','connected':True,'battery':100,'wifi':True},{'device':'Welch Allyn Weighing Device','type':'Individual · weight','connected':True,'battery':100,'wifi':True},{'device':'Everion','type':'Wearable · RR / skin temperature','connected':True,'battery':100,'wifi':True}]
+    st.session_state.devices[pid]=care+common
+
+def patient_creation_panel(origin,key):
+    st.subheader('➕ Create / Add New Patient')
+    st.caption(f'Entry point: {origin}. Both entry points use the same demo Master Patient Index and duplicate-check service.')
+    with st.form(f'create_patient_{key}',clear_on_submit=False):
+        c1,c2,c3=st.columns(3)
+        first=c1.text_input('First name'); last=c2.text_input('Last name'); dob=c3.date_input('Date of birth',value=datetime(1970,1,1).date())
+        age=max(0,(datetime.now().date()-dob).days//365); st.caption(f'Calculated age: {age}')
+        c1,c2,c3=st.columns(3); phone=c1.text_input('Phone number'); email=c2.text_input('Email (optional)'); clinician=c3.selectbox('Assigned clinician',CLINICIANS)
+        address=st.text_input('Street address'); c1,c2,c3=st.columns(3); city=c1.text_input('City'); state=c2.text_input('State',value='TX'); zipcode=c3.text_input('ZIP code')
+        care=st.selectbox('RPM care plan',CARE_PLANS)
+        c1,c2=st.columns(2); insurance=c1.text_input('Insurance plan'); member=c2.text_input('Insurance member ID')
+        c1,c2,c3=st.columns(3); nok=c1.text_input('Next of kin'); rel=c2.text_input('Relationship to patient'); nokphone=c3.text_input('Next-of-kin contact number')
+        submitted=st.form_submit_button('Create Patient',type='primary')
+    if submitted:
+        if not first.strip() or not last.strip() or not phone.strip(): st.error('First name, last name, and phone number are required for this demo identity check.'); return
+        exact,possible=find_duplicate(first,last,dob,phone)
+        if exact:
+            ep=PATIENTS[exact[0]]; st.error(f"Duplicate prevented. Matching patient already exists: {ep['name']} · {ep['mrn']}. Match criteria: normalized legal name + DOB + phone.")
+        elif possible:
+            ep=PATIENTS[possible[0]]; st.warning(f"Possible duplicate found: {ep['name']} · {ep['mrn']} has the same normalized name + DOB. Creation is blocked in this demo pending identity review.")
+        else:
+            pid,mrn=next_patient_ids(); PATIENTS[pid]={'name':f'{first.strip()} {last.strip()}','clinician':clinician,'mrn':mrn,'dob':str(dob),'care_plan':care,'address':address,'city':city,'state':state,'zip':zipcode,'phone':phone,'email':email,'insurance':insurance,'member_id':member,'next_of_kin':nok,'nok_relationship':rel,'nok_phone':nokphone,'baseline_spo2':97,'baseline_weight':170.0,'baseline_hr':75}
+            setup_new_patient(pid); st.session_state.audit.append({'time':datetime.now().strftime('%H:%M:%S'),'event_id':pid,'step':f'Patient created from {origin}; MPI duplicate check passed','status':'SUCCESS'}); st.success(f"Patient created once in shared registry: {PATIENTS[pid]['name']} · MRN {mrn}. The patient is now visible from both Clinical Dashboard and Mock EHR.")
+
 LOINC = {'SpO2':'59408-5','Heart Rate':'8867-4','Body Weight':'29463-7','Systolic BP':'8480-6','Diastolic BP':'8462-4','Respiratory Rate':'9279-1','Skin Temperature':'39106-0','Glucose':'14743-9'}
 
 
@@ -128,17 +186,17 @@ def trend_chart(pid, field, title, unit, min_key=None, max_key=None):
     es=patient_events(pid)[-7:]; x=[pd.to_datetime(e['timestamp']) for e in es]; y=[e.get(field) for e in es]
     src=[e.get('source','Device') for e in es]; symbols=['circle' if 'Device' in a else 'diamond' for a in src]
     t=st.session_state.thresholds[pid]; lo=t.get(min_key) if min_key else None; hi=t.get(max_key) if max_key else None
-    colors=['red' if (lo is not None and v<lo) or (hi is not None and v>hi) else '#2878B5' for v in y]
+    colors=['#D62728' if (lo is not None and v<lo) or (hi is not None and v>hi) else ('#7B2CBF' if 'Manual' in src[i] else '#2878B5') for i,v in enumerate(y)]
     custom=[]
     for e in es:
         device=source_device(PATIENTS[pid]['care_plan'], field, e.get('source','Device'))
         custom.append([e['event_id'],e.get('source','Device'),device,e['ecg']])
     fig=go.Figure(go.Scatter(x=x,y=y,mode='lines+markers+text',text=[str(v) for v in y],textposition='top center',line={'color':'#7A7A7A'},marker={'size':11,'symbol':symbols,'color':colors},customdata=custom,hovertemplate='<b>Value:</b> %{y} '+unit+'<br><b>Timestamp:</b> %{x|%b %d, %Y %I:%M %p}<br><b>Entry source:</b> %{customdata[1]}<br><b>Device:</b> %{customdata[2]}<br><b>Event:</b> %{customdata[0]}<br><b>ECG:</b> %{customdata[3]}<extra></extra>'))
-    if lo is not None: fig.add_hline(y=lo,line_dash='dash',line_color='#6C63A8',annotation_text='Min threshold')
-    if hi is not None: fig.add_hline(y=hi,line_dash='dash',line_color='#6C63A8',annotation_text='Max threshold')
+    if lo is not None: fig.add_hline(y=lo,line_dash='dash',line_color='#008C95',annotation_text='Min threshold')
+    if hi is not None: fig.add_hline(y=hi,line_dash='dash',line_color='#008C95',annotation_text='Max threshold')
     fig.update_layout(title=title,height=310,margin=dict(l=20,r=20,t=55,b=20),yaxis_title=unit,hovermode='closest')
     st.plotly_chart(fig,use_container_width=True)
-    st.caption('● Device-generated   ◆ Manual clinician-assisted   🔴 Out of configured threshold   Purple dashed lines = configured min/max limits')
+    st.caption('● Device-generated   ◆ Manual clinician-assisted   🔵 Device-generated normal-range point   🟣 Manual clinician-assisted point   🔴 Out-of-threshold reading   Teal dashed lines = configured min/max limits')
 
 def source_device(plan, field, source):
     if 'Manual' in source: return 'Patient-reported / clinician-entered'
@@ -158,7 +216,7 @@ def questionnaire_for(plan):
 st.title('🫀 RPM Connected Care AI Platform · v2.3')
 st.caption('Patient Daily Check-In • Connected Devices • Thresholds • Trends • Questionnaire • Secure Chat • Video-call Simulation • API/FHIR • Synthetic data')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
-menu=st.sidebar.radio('Navigate',['1 · Patient Home & Daily Check-In','2 · Clinical Command Center','3 · Patient 360 & Trends','4 · ECG Documents','5 · AI Agent','6 · Clinician Interventions','7 · Communication Center','8 · Integration Hub / API','9 · Mock EHR','10 · Data Lineage & Audit','11 · Architecture & Product'])
+menu=st.sidebar.radio('Navigate',['1 · Patient Home & Daily Check-In','2 · Clinical Command Center','3 · Patient 360 & Trends','4 · ECG Documents','5 · AI Agent','6 · Clinician Interventions','7 · Communication Center','8 · Integration Hub / API','9 · Mock EHR','10 · Data Lineage & Audit','11 · Architecture & Product','12 · Patient Identity & Duplicate Prevention'])
 
 if menu.startswith('1 ·'):
     st.header('📱 Patient Home & Daily Check-In')
@@ -190,13 +248,22 @@ if menu.startswith('1 ·'):
 elif menu.startswith('2 ·'):
     st.header('🩺 Clinical Command Center')
     st.write('Population view for clinicians: alerts, assigned clinician, connectivity, device status, and patient communications.')
+    with st.expander('➕ Create Patient / Add New Patient'):
+        patient_creation_panel('Clinical Dashboard','clinical')
     rows=[]
     for pid,p in PATIENTS.items():
-        e=latest_for(pid); pri,_,_=assess(e); devs=st.session_state.devices[pid]; problems=sum((not d['connected']) or (not d['wifi']) or d['battery']<30 for d in devs); unread=sum(m['patient_id']==pid and m['sender']=='Patient' and not m.get('read',False) for m in st.session_state.messages)
-        rows.append({'Patient':p['name'],'Assigned clinician':p['clinician'],'Care Plan':p['care_plan'],'SpO₂':e['spo2'],'HR':e['ecg_hr'],'Priority':pri,'Alert status':alert_status(e),'Device issues':problems,'Unread chat':unread})
+        e=latest_for(pid); devs=st.session_state.devices.get(pid,[]); problems=sum((not d['connected']) or (not d['wifi']) or d['battery']<30 for d in devs); unread=sum(m['patient_id']==pid and m['sender']=='Patient' and not m.get('read',False) for m in st.session_state.messages)
+        if e: pri,_,_=assess(e); spo=e['spo2']; hr=e['ecg_hr']; ast=alert_status(e)
+        else: pri='AWAITING DATA'; spo='—'; hr='—'; ast='No RPM reading yet'
+        rows.append({'Patient':p['name'],'MRN':p['mrn'],'Assigned clinician':p['clinician'],'Care Plan':p['care_plan'],'SpO₂':spo,'HR':hr,'Priority':pri,'Alert status':ast,'Device issues':problems,'Unread chat':unread})
     st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
     pid=st.selectbox('Open patient clinical view',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} — {PATIENTS[x]['clinician']}")
-    p=PATIENTS[pid]; e=latest_for(pid); pri,reasons,_=assess(e)
+    p=PATIENTS[pid]; e=latest_for(pid)
+    if not e:
+        st.info('Patient enrolled. No RPM readings have been received yet. Use Patient Home & Daily Check-In to simulate the first submission.')
+        st.subheader('Wearables & connectivity'); st.dataframe(device_table(pid),hide_index=True,use_container_width=True)
+        st.stop()
+    pri,reasons,_=assess(e)
     a,b,c=st.columns(3); a.metric('Assigned clinician',p['clinician']); b.metric('Priority',pri); c.metric('Alert status',alert_status(e))
     st.subheader('Wearables & connectivity'); st.dataframe(device_table(pid),hide_index=True,use_container_width=True)
     for d in st.session_state.devices[pid]:
@@ -209,7 +276,11 @@ elif menu.startswith('2 ·'):
 
 elif menu.startswith('3 ·'):
     st.header('👤 Patient 360 & Trends')
-    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); p=PATIENTS[pid]; e=latest_for(pid); pri,reasons,_=assess(e)
+    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); p=PATIENTS[pid]; e=latest_for(pid)
+    if not e:
+        st.info('Patient is enrolled but has no RPM readings yet. Demographics and devices are available; trends begin after the first submission.')
+        st.write({'MRN':p['mrn'],'DOB':p['dob'],'Phone':p.get('phone'),'Care plan':p['care_plan'],'Assigned clinician':p['clinician']}); st.dataframe(device_table(pid),hide_index=True,use_container_width=True); st.stop()
+    pri,reasons,_=assess(e)
     left,right=st.columns([3,1])
     with left:
         a,b,c,d=st.columns(4); a.metric('Care plan',p['care_plan']); b.metric('Assigned clinician',p['clinician']); c.metric('Latest source',e.get('source','Device')); d.metric('Priority',pri)
@@ -222,7 +293,7 @@ elif menu.startswith('3 ·'):
             with st.expander(f"{x['timestamp'][:10]} · {x['event_id']} · {x.get('source','Device')}"):
                 qa=x.get('questionnaire',{'sob':'Yes' if x.get('sob') else 'No','chest':'Yes' if x.get('chest') else 'No','dizzy':'Yes' if x.get('dizzy') else 'No','meds':'Yes' if x.get('meds') else 'No'}); st.dataframe(pd.DataFrame([{'Question / field':k.replace('_',' ').title(),'Answer':v} for k,v in qa.items()]),hide_index=True,use_container_width=True)
     with right:
-        st.subheader('⚙️ Patient Alert Threshold Settings'); st.info('These controls SET the patient-specific minimum and maximum limits. They are not today’s readings. Trend points turn RED only when a reading falls outside the configured limits; purple dashed lines show the limits.')
+        st.subheader('⚙️ Patient Alert Threshold Settings'); st.info('These controls SET the patient-specific minimum and maximum limits. They are not today’s readings. Trend points turn RED only when a reading falls outside the configured limits; teal dashed lines show the configured limits. Manual clinician-assisted readings appear purple so provenance is visible at a glance.')
         t=st.session_state.thresholds[pid]
         t['spo2_min'],t['spo2_max']=st.slider('SpO₂ (%) min / max',70,100,(int(t['spo2_min']),int(t['spo2_max'])))
         t['hr_min'],t['hr_max']=st.slider('Heart rate (bpm) min / max',30,180,(int(t['hr_min']),int(t['hr_max'])))
@@ -295,7 +366,10 @@ elif menu.startswith('8 ·'):
     with t3: st.dataframe(pd.DataFrame([{'Source':'Pulse oximeter','Field':'SpO₂','LOINC':LOINC['SpO2'],'Destination':'EHR flowsheet / Observation'},{'Source':'ECG device','Field':'Heart rate','LOINC':LOINC['Heart Rate'],'Destination':'EHR flowsheet / Observation'},{'Source':'Scale','Field':'Weight','LOINC':LOINC['Body Weight'],'Destination':'EHR flowsheet / Observation'},{'Source':'BP wearable','Field':'Systolic BP','LOINC':LOINC['Systolic BP'],'Destination':'EHR flowsheet / Observation'},{'Source':'Everion','Field':'Respiratory rate / skin temperature','LOINC':LOINC['Respiratory Rate']+' / '+LOINC['Skin Temperature'],'Destination':'EHR flowsheet / Observation'},{'Source':'Dexcom G7 CGM','Field':'Glucose','LOINC':LOINC['Glucose'],'Destination':'EHR flowsheet / Observation'},{'Source':'ECG report','Field':'PDF','LOINC':'N/A','Destination':'Cloverleaf → OnBase → EHR Media (simulated)'}]),hide_index=True,use_container_width=True)
 
 elif menu.startswith('9 ·'):
-    st.header('Mock EHR'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); es=patient_events(pid); t1,t2,t3=st.tabs(['Flowsheets','Media','Care-team communications'])
+    st.header('Mock EHR');
+    with st.expander('➕ Create Patient / Add New Patient'):
+        patient_creation_panel('Mock EHR','ehr')
+    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); es=patient_events(pid); t1,t2,t3=st.tabs(['Flowsheets','Media','Care-team communications'])
     with t1: st.dataframe(pd.DataFrame([{'Date/Time':e['timestamp'][:16].replace('T',' '),'SpO₂':e['spo2'],'Heart Rate':e['ecg_hr'],'Weight':e['weight'],'BP':f"{e['sys']}/{e['dia']}",'ECG device result':e['ecg']} for e in es]),hide_index=True,use_container_width=True)
     with t2:
         for e in [x for x in es if x['pdf_ok']]: st.write(f"📄 {e['event_id']}.pdf · Remote ECG · Source: RPM Vendor · Status: FILED"); st.download_button('View PDF',ecg_pdf_bytes(e,True),file_name=f"{e['event_id']}.pdf",mime='application/pdf',key='ehr'+e['event_id'])
@@ -309,8 +383,21 @@ elif menu.startswith('10 ·'):
     for n,title,desc in steps: st.markdown(f'**{n}. {title}**  \n{desc}')
     st.subheader('Session audit log'); st.dataframe(pd.DataFrame(st.session_state.audit),hide_index=True,use_container_width=True) if st.session_state.audit else st.caption('Ingest or document an intervention to populate the live audit log.')
 
-else:
+elif menu.startswith('11 ·'):
     st.header('Architecture & Product Story'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
     st.write('**MVP epics:** timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
+
+
+if menu.startswith('12 ·'):
+    st.header('🧬 Patient Identity & Duplicate Prevention')
+    st.write('Both the Clinical Dashboard and Mock EHR creation buttons call the same shared Master Patient Index (MPI) service in this prototype. That means there is one patient registry, not two independent patient lists.')
+    st.subheader('Demo matching logic')
+    st.markdown('''**1. Exact/high-confidence match:** normalized legal name + date of birth + phone → creation is blocked and the existing MRN is returned.  
+**2. Possible match:** normalized legal name + date of birth → creation is blocked for identity review.  
+**3. No match:** a new synthetic MRN is generated and the patient is written once to the shared registry.  
+**4. Source is audited:** the audit trail records whether creation started from the Clinical Dashboard or Mock EHR.''')
+    st.info('Production systems typically use an Enterprise Master Patient Index (EMPI/MPI), stronger identity attributes, configurable matching rules, role-based access, merge/unmerge governance, and human review for ambiguous matches. This portfolio prototype intentionally uses a simple deterministic rule.')
+    st.subheader('Shared patient registry')
+    st.dataframe(pd.DataFrame([{'Patient':p['name'],'MRN':p['mrn'],'DOB':p['dob'],'Phone':p.get('phone',''),'Care Plan':p['care_plan'],'Assigned clinician':p['clinician']} for p in PATIENTS.values()]),hide_index=True,use_container_width=True)

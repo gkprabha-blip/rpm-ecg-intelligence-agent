@@ -21,3 +21,14 @@ python3 -m streamlit run app.py
 
 ## Safety
 All patients, MRNs, readings, questionnaires, alerts, thresholds, ECG waveforms, and EHR workflows are synthetic demonstration data. Thresholds are demo configuration values and are not clinical recommendations. Clinical decisions remain human-in-the-loop.
+
+## v2.4 additions
+- Create/Add New Patient from both Clinical Command Center and Mock EHR.
+- Shared in-session Master Patient Index (MPI) so both entry points create into one registry.
+- Duplicate prevention: exact normalized name + DOB + phone blocks creation; name + DOB triggers possible-duplicate review.
+- Auto-generated synthetic MRN after duplicate check passes.
+- Demographics, address, phone/email, insurance, next of kin, relationship/contact, RPM care plan and assigned clinician.
+- Dedicated Patient Identity & Duplicate Prevention page explaining the matching workflow.
+- Trend visualization: manual clinician-assisted readings are purple; out-of-threshold readings are red; configured min/max thresholds are teal dashed lines.
+
+All data and workflows are synthetic portfolio demonstrations and are not clinical recommendations or production patient-matching logic.
