@@ -1,4 +1,4 @@
-import io, json, math
+import io, json, math, re
 from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
@@ -7,7 +7,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v2.4', page_icon='🫀', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v2.5', page_icon='🫀', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -26,6 +26,14 @@ PATIENTS = st.session_state.patients
 
 CARE_PLANS=['Cardiology','Cirrhosis / Liver Disease','Hypertension','Diabetes / CGM','Heart Failure','COPD / Pulmonary','Chronic Kidney Disease','Post-Surgical Recovery']
 CLINICIANS=['Dr. John Doe','Dr. Aisha Morgan','Dr. Samuel Lee','Dr. Elena Rivera']
+US_STATES=['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC']
+NOK_RELATIONSHIPS=['Spouse / Partner','Mother','Father','Parent','Daughter','Son','Child','Sister','Brother','Sibling','Grandparent','Grandchild','Aunt','Uncle','Cousin','Guardian','Caregiver','Friend','Emergency Contact','Next of Kin','Other']
+# RPM has no universal fixed enrollment duration. These are portfolio defaults only; clinician can change them.
+CARE_PLAN_DEFAULTS={
+ 'Cardiology':('Ongoing / clinician-defined',90),'Cirrhosis / Liver Disease':('Ongoing / clinician-defined',90),
+ 'Hypertension':('Ongoing / clinician-defined',90),'Diabetes / CGM':('Ongoing / clinician-defined',90),
+ 'Heart Failure':('Ongoing / clinician-defined',60),'COPD / Pulmonary':('Ongoing / clinician-defined',90),
+ 'Chronic Kidney Disease':('Ongoing / clinician-defined',90),'Post-Surgical Recovery':('Short-term / clinician-defined',30)}
 
 def norm_text(v): return ''.join(ch.lower() for ch in str(v).strip() if ch.isalnum())
 def next_patient_ids():
@@ -51,26 +59,54 @@ def setup_new_patient(pid):
 
 def patient_creation_panel(origin,key):
     st.subheader('➕ Create / Add New Patient')
-    st.caption(f'Entry point: {origin}. Both entry points use the same demo Master Patient Index and duplicate-check service.')
+    st.caption(f'Entry point: {origin}. Both entry points use the same demo Master Patient Index and duplicate-check service. Fields marked * are required.')
     with st.form(f'create_patient_{key}',clear_on_submit=False):
         c1,c2,c3=st.columns(3)
-        first=c1.text_input('First name'); last=c2.text_input('Last name'); dob=c3.date_input('Date of birth',value=datetime(1970,1,1).date())
+        first=c1.text_input('First name :red[*]')
+        last=c2.text_input('Last name :red[*]')
+        dob=c3.date_input('Date of birth (MM/DD/YYYY) :red[*]',value=datetime(1970,1,1).date(),max_value=datetime.now().date(),format='MM/DD/YYYY')
         age=max(0,(datetime.now().date()-dob).days//365); st.caption(f'Calculated age: {age}')
-        c1,c2,c3=st.columns(3); phone=c1.text_input('Phone number'); email=c2.text_input('Email (optional)'); clinician=c3.selectbox('Assigned clinician',CLINICIANS)
-        address=st.text_input('Street address'); c1,c2,c3=st.columns(3); city=c1.text_input('City'); state=c2.text_input('State',value='TX'); zipcode=c3.text_input('ZIP code')
-        care=st.selectbox('RPM care plan',CARE_PLANS)
-        c1,c2=st.columns(2); insurance=c1.text_input('Insurance plan'); member=c2.text_input('Insurance member ID')
-        c1,c2,c3=st.columns(3); nok=c1.text_input('Next of kin'); rel=c2.text_input('Relationship to patient'); nokphone=c3.text_input('Next-of-kin contact number')
+        c1,c2,c3=st.columns(3)
+        phone=c1.text_input('Phone number :red[*]',placeholder='512-555-0123')
+        email=c2.text_input('Email (optional)',placeholder='patient@example.com')
+        clinician=c3.selectbox('Assigned clinician :red[*]',CLINICIANS)
+        address=st.text_input('Street address :red[*]',placeholder='123 Main St')
+        c1,c2,c3=st.columns(3)
+        city=c1.text_input('City :red[*]',placeholder='Austin')
+        state=c2.selectbox('State :red[*]',US_STATES,index=US_STATES.index('TX'))
+        zipcode=c3.text_input('ZIP code :red[*]',placeholder='78701 or 78701-1234',max_chars=10)
+        care=st.selectbox('RPM care plan :red[*]',CARE_PLANS)
+        default_label,default_days=CARE_PLAN_DEFAULTS[care]
+        c1,c2=st.columns(2)
+        duration=c1.selectbox('Program duration / enrollment plan :red[*]',['Ongoing / clinician-defined','30 days','60 days','90 days','180 days','12 months','Custom'])
+        review_days=c2.number_input('Next care-plan review in (days) :red[*]',min_value=7,max_value=365,value=default_days,step=7)
+        st.caption('RPM can be used for acute or chronic conditions; there is no universal fixed enrollment duration. The clinician sets duration and review timing based on the care plan.')
+        c1,c2=st.columns(2); insurance=c1.text_input('Insurance plan :red[*]'); member=c2.text_input('Insurance member ID :red[*]')
+        st.markdown('**Next of kin / emergency contact**')
+        c1,c2,c3=st.columns(3)
+        nok=c1.text_input('Contact name :red[*]')
+        rel=c2.selectbox('Relationship to patient :red[*]',NOK_RELATIONSHIPS)
+        nokphone=c3.text_input('Contact phone :red[*]',placeholder='512-555-0199')
         submitted=st.form_submit_button('Create Patient',type='primary')
     if submitted:
-        if not first.strip() or not last.strip() or not phone.strip(): st.error('First name, last name, and phone number are required for this demo identity check.'); return
+        errors=[]
+        required={'First name':first,'Last name':last,'Phone':phone,'Street address':address,'City':city,'ZIP code':zipcode,'Insurance plan':insurance,'Insurance member ID':member,'Next-of-kin name':nok,'Next-of-kin phone':nokphone}
+        errors += [f'{k} is required.' for k,v in required.items() if not str(v).strip()]
+        if city.strip() and not re.fullmatch(r"[A-Za-z .'-]{2,60}",city.strip()): errors.append('City should contain letters, spaces, apostrophes, periods, or hyphens only.')
+        if zipcode.strip() and not re.fullmatch(r'\d{5}(-\d{4})?',zipcode.strip()): errors.append('ZIP code must be 5 digits or ZIP+4 (for example 78701 or 78701-1234).')
+        if phone.strip() and len(re.sub(r'\D','',phone)) != 10: errors.append('Patient phone number must contain 10 digits.')
+        if nokphone.strip() and len(re.sub(r'\D','',nokphone)) != 10: errors.append('Next-of-kin phone number must contain 10 digits.')
+        if dob > datetime.now().date(): errors.append('Date of birth cannot be in the future.')
+        if errors:
+            for err in errors: st.error(err)
+            return
         exact,possible=find_duplicate(first,last,dob,phone)
         if exact:
             ep=PATIENTS[exact[0]]; st.error(f"Duplicate prevented. Matching patient already exists: {ep['name']} · {ep['mrn']}. Match criteria: normalized legal name + DOB + phone.")
         elif possible:
             ep=PATIENTS[possible[0]]; st.warning(f"Possible duplicate found: {ep['name']} · {ep['mrn']} has the same normalized name + DOB. Creation is blocked in this demo pending identity review.")
         else:
-            pid,mrn=next_patient_ids(); PATIENTS[pid]={'name':f'{first.strip()} {last.strip()}','clinician':clinician,'mrn':mrn,'dob':str(dob),'care_plan':care,'address':address,'city':city,'state':state,'zip':zipcode,'phone':phone,'email':email,'insurance':insurance,'member_id':member,'next_of_kin':nok,'nok_relationship':rel,'nok_phone':nokphone,'baseline_spo2':97,'baseline_weight':170.0,'baseline_hr':75}
+            pid,mrn=next_patient_ids(); PATIENTS[pid]={'name':f'{first.strip()} {last.strip()}','clinician':clinician,'mrn':mrn,'dob':str(dob),'care_plan':care,'program_duration':duration,'review_days':int(review_days),'enrollment_date':datetime.now().date().isoformat(),'next_review_date':(datetime.now().date()+timedelta(days=int(review_days))).isoformat(),'address':address,'city':city,'state':state,'zip':zipcode,'phone':phone,'email':email,'insurance':insurance,'member_id':member,'next_of_kin':nok,'nok_relationship':rel,'nok_phone':nokphone,'baseline_spo2':97,'baseline_weight':170.0,'baseline_hr':75}
             setup_new_patient(pid); st.session_state.audit.append({'time':datetime.now().strftime('%H:%M:%S'),'event_id':pid,'step':f'Patient created from {origin}; MPI duplicate check passed','status':'SUCCESS'}); st.success(f"Patient created once in shared registry: {PATIENTS[pid]['name']} · MRN {mrn}. The patient is now visible from both Clinical Dashboard and Mock EHR.")
 
 LOINC = {'SpO2':'59408-5','Heart Rate':'8867-4','Body Weight':'29463-7','Systolic BP':'8480-6','Diastolic BP':'8462-4','Respiratory Rate':'9279-1','Skin Temperature':'39106-0','Glucose':'14743-9'}
@@ -97,6 +133,7 @@ if 'events' not in st.session_state: st.session_state.events=seed_history()
 if 'audit' not in st.session_state: st.session_state.audit=[]
 if 'interventions' not in st.session_state:
     st.session_state.interventions=[{'intervention_id':'INT-001','patient_id':'SYN-1002','event_id':'EVT-014','timestamp':datetime.now().replace(second=0,microsecond=0).isoformat(),'channel':'Phone call','clinician':'RPM Nurse - Demo','outcome':'Patient reached; symptoms reviewed; escalated to clinician for review.','status':'Completed'}]
+if 'patient_samples' not in st.session_state: st.session_state.patient_samples=[]
 if 'last_ingested' not in st.session_state: st.session_state.last_ingested=None
 if 'thresholds' not in st.session_state:
     st.session_state.thresholds={pid:{'spo2_min':92,'spo2_max':100,'hr_min':50,'hr_max':110,'weight_min':p['baseline_weight']-5,'weight_max':p['baseline_weight']+5,'sys_min':90,'sys_max':160,'dia_min':50,'dia_max':100,'rr_min':10,'rr_max':24,'temp_min':34.0,'temp_max':38.0,'glucose_min':70,'glucose_max':180} for pid,p in PATIENTS.items()}
@@ -209,11 +246,19 @@ def source_device(plan, field, source):
     return 'Connected device'
 
 def questionnaire_for(plan):
-    if plan=='Cardiology':
-        return [('sob','Shortness of breath?'),('chest','Chest discomfort?'),('palpitations','Palpitations or rapid heartbeat?'),('dizzy','Dizziness or lightheadedness?'),('swelling','New/increased swelling in feet or ankles?'),('fatigue','Unusual fatigue?'),('meds','Did you take medications as directed today?')]
-    return [('abdominal_swelling','Increased abdominal swelling?'),('leg_swelling','New/increased leg or ankle swelling?'),('sob','Shortness of breath?'),('nausea','Nausea or vomiting?'),('appetite','Reduced appetite?'),('confusion','New confusion or difficulty concentrating?'),('sleepiness','Unusual sleepiness?'),('bleeding','Blood in vomit or stool reported?'),('meds','Did you take medications as directed today?')]
+    templates={
+      'Cardiology':[('sob','Shortness of breath?'),('chest','Chest discomfort?'),('palpitations','Palpitations or rapid heartbeat?'),('dizzy','Dizziness or lightheadedness?'),('swelling','New/increased swelling in feet or ankles?'),('fatigue','Unusual fatigue?'),('meds','Did you take medications as directed today?')],
+      'Cirrhosis / Liver Disease':[('abdominal_swelling','Increased abdominal swelling?'),('leg_swelling','New/increased leg or ankle swelling?'),('sob','Shortness of breath?'),('nausea','Nausea or vomiting?'),('appetite','Reduced appetite?'),('confusion','New confusion or difficulty concentrating?'),('sleepiness','Unusual sleepiness?'),('bleeding','Blood in vomit or stool reported?'),('meds','Did you take medications as directed today?')],
+      'Hypertension':[('headache','New or severe headache?'),('dizzy','Dizziness or lightheadedness?'),('vision','New vision changes?'),('chest','Chest discomfort?'),('sob','Shortness of breath?'),('meds','Did you take blood-pressure medications as directed today?')],
+      'Diabetes / CGM':[('hypo_symptoms','Shaking, sweating, confusion, or other low-glucose symptoms?'),('hyper_symptoms','Increased thirst or urination?'),('nausea','Nausea or vomiting?'),('food','Were you able to eat as planned today?'),('meds','Did you take diabetes medications/insulin as directed today?'),('sensor_issue','Any CGM sensor or connectivity issue?')],
+      'Heart Failure':[('sob','Shortness of breath?'),('orthopnea','More difficulty breathing while lying flat?'),('swelling','New/increased leg or ankle swelling?'),('fatigue','Unusual fatigue?'),('weight_concern','Do you feel your weight/fluid retention increased?'),('chest','Chest discomfort?'),('meds','Did you take medications as directed today?')],
+      'COPD / Pulmonary':[('sob','More shortness of breath than usual?'),('cough','New or increased cough?'),('sputum','Change in mucus/sputum amount or color?'),('wheeze','More wheezing than usual?'),('feverish','Feeling feverish or chilled?'),('rescue_inhaler','Needed rescue inhaler more than usual?'),('meds','Did you take respiratory medications as directed today?')],
+      'Chronic Kidney Disease':[('swelling','New/increased swelling?'),('sob','Shortness of breath?'),('urine','Noticeable change in urine output?'),('nausea','Nausea or vomiting?'),('fatigue','Unusual fatigue?'),('appetite','Reduced appetite?'),('meds','Did you take medications as directed today?')],
+      'Post-Surgical Recovery':[('pain','Pain worse than expected today?'),('feverish','Feeling feverish or chilled?'),('wound_redness','Increasing redness around incision/wound?'),('drainage','New/increased wound drainage?'),('swelling','New/increased swelling?'),('mobility','Difficulty with expected walking/activity?'),('meds','Did you take prescribed medications as directed today?')]
+    }
+    return templates.get(plan,templates['Cardiology'])
 
-st.title('🫀 RPM Connected Care AI Platform · v2.3')
+st.title('🫀 RPM Connected Care AI Platform · v2.5')
 st.caption('Patient Daily Check-In • Connected Devices • Thresholds • Trends • Questionnaire • Secure Chat • Video-call Simulation • API/FHIR • Synthetic data')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 menu=st.sidebar.radio('Navigate',['1 · Patient Home & Daily Check-In','2 · Clinical Command Center','3 · Patient 360 & Trends','4 · ECG Documents','5 · AI Agent','6 · Clinician Interventions','7 · Communication Center','8 · Integration Hub / API','9 · Mock EHR','10 · Data Lineage & Audit','11 · Architecture & Product','12 · Patient Identity & Duplicate Prevention'])
@@ -236,11 +281,20 @@ if menu.startswith('1 ·'):
     st.subheader(f"📋 {p['care_plan']} Daily Questionnaire")
     answers={}
     for key,q in questionnaire_for(p['care_plan']): answers[key]=st.radio(q,['No','Yes'],horizontal=True,key=f'q_{pid}_{key}',index=1 if key=='meds' else 0)
+    st.subheader('🎙️📷 Patient Samples')
+    st.caption('Optional patient-generated media for the synthetic care workflow. Audio and images are stored only in this demo session and are not clinically interpreted by the prototype.')
+    audio_sample=st.audio_input('Record cough / breathing audio (optional)')
+    image_sample=st.camera_input('Take a patient photo / symptom image (optional)')
+    sample_note=st.text_input('Sample note (optional)',placeholder='Example: cough sample after morning questionnaire')
     entered_by=''
     if mode.startswith('Clinician'): entered_by=st.selectbox('Clinician entering patient-reported data',['Dr. John Doe','Dr. Aisha Morgan','Dr. Samuel Lee','RPM Nurse - Demo'])
     if st.button('📤 Simulate Patient Daily Submission' if mode.startswith('Patient') else '☎️ Save Clinician-Assisted Entry',type='primary'):
         nums=[int(x['event_id'].split('-')[1]) for x in events]; eid=f"EVT-{max(nums)+1:03d}"; source='Device' if mode.startswith('Patient') else f'Manual - {entered_by} via outreach'
         e={'event_id':eid,'patient_id':pid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'ecg':ecg,'ecg_hr':int(hr),'spo2':int(spo2),'weight':float(wt),'rr':int(rr),'skin_temp':float(skin_temp),'glucose':int(glucose),'sys':int(sys),'dia':int(dia),'sob':answers.get('sob')=='Yes','chest':answers.get('chest')=='Yes','dizzy':answers.get('dizzy')=='Yes','meds':answers.get('meds')=='Yes','questionnaire':answers,'pdf_ok':pdf_ok,'source':source}; events.append(e); st.session_state.last_ingested=eid
+        for media_obj,media_type,ext in [(audio_sample,'Cough / breathing audio','wav'),(image_sample,'Patient image','jpg')]:
+            if media_obj is not None:
+                st.session_state.patient_samples.append({'sample_id':f"SMP-{len(st.session_state.patient_samples)+1:03d}",'patient_id':pid,'event_id':eid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'type':media_type,'note':sample_note,'filename':f"{pid}_{eid}_{media_type.split()[0].lower()}.{ext}",'mime':'audio/wav' if ext=='wav' else 'image/jpeg','bytes':media_obj.getvalue()})
+                log(eid,f'{media_type} captured and filed to Patient Samples / Mock EHR Media')
         for step in ['Daily questionnaire submitted','RPM data ingested','Clinical dashboard updated','Threshold/AI alert evaluation completed','EHR-ready payload generated']: log(eid,step)
         pri,reasons,_=assess(e); st.success(f'{eid} saved as a NEW timestamped RPM event. Existing history was preserved. Source: {source}.'); a,b,c=st.columns(3); a.metric('Priority',pri); b.metric('SpO₂',f"{spo2}%"); c.metric('Heart rate',f"{hr} bpm")
         if reasons: st.warning('Alert reasons: '+' | '.join(reasons))
@@ -276,7 +330,8 @@ elif menu.startswith('2 ·'):
 
 elif menu.startswith('3 ·'):
     st.header('👤 Patient 360 & Trends')
-    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); p=PATIENTS[pid]; e=latest_for(pid)
+    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); p=PATIENTS[pid]
+    st.info(f"Care plan: {p['care_plan']} | Program duration: {p.get('program_duration','Ongoing / clinician-defined')} | Next review: {p.get('next_review_date','Clinician-defined')}"); e=latest_for(pid)
     if not e:
         st.info('Patient is enrolled but has no RPM readings yet. Demographics and devices are available; trends begin after the first submission.')
         st.write({'MRN':p['mrn'],'DOB':p['dob'],'Phone':p.get('phone'),'Care plan':p['care_plan'],'Assigned clinician':p['clinician']}); st.dataframe(device_table(pid),hide_index=True,use_container_width=True); st.stop()
@@ -288,6 +343,11 @@ elif menu.startswith('3 ·'):
         st.subheader('7-day longitudinal trends')
         trend_chart(pid,'spo2','SpO₂ Trend','%','spo2_min','spo2_max'); trend_chart(pid,'ecg_hr','Heart Rate Trend','bpm','hr_min','hr_max'); trend_chart(pid,'weight','Weight Trend','lb','weight_min','weight_max'); trend_chart(pid,'rr','Respiratory Rate Trend','breaths/min','rr_min','rr_max'); trend_chart(pid,'skin_temp','Skin Temperature Trend','°C','temp_min','temp_max'); trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
         st.subheader('ECG classification history'); st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in patient_events(pid)[-7:]]),hide_index=True,use_container_width=True)
+        st.subheader('🎙️📷 Patient Samples')
+        ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
+        if ps:
+            st.dataframe(pd.DataFrame([{'Sample ID':m['sample_id'],'Date/Time':m['timestamp'][:16].replace('T',' '),'Type':m['type'],'Note':m['note'],'Linked event':m['event_id']} for m in ps]),hide_index=True,use_container_width=True)
+        else: st.caption('No patient-generated audio or image samples in this demo session.')
         st.subheader('Daily questionnaire history')
         for x in reversed(patient_events(pid)[-7:]):
             with st.expander(f"{x['timestamp'][:10]} · {x['event_id']} · {x.get('source','Device')}"):
@@ -372,6 +432,11 @@ elif menu.startswith('9 ·'):
     pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); es=patient_events(pid); t1,t2,t3=st.tabs(['Flowsheets','Media','Care-team communications'])
     with t1: st.dataframe(pd.DataFrame([{'Date/Time':e['timestamp'][:16].replace('T',' '),'SpO₂':e['spo2'],'Heart Rate':e['ecg_hr'],'Weight':e['weight'],'BP':f"{e['sys']}/{e['dia']}",'ECG device result':e['ecg']} for e in es]),hide_index=True,use_container_width=True)
     with t2:
+        st.subheader('RPM Documents & Patient Samples')
+        ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
+        for m in ps:
+            st.write(f"🎙️📷 {m['sample_id']} · {m['type']} · {m['timestamp'][:16].replace('T',' ')} · {m['note']}")
+            st.download_button(f"Open / download {m['sample_id']}",m['bytes'],file_name=m['filename'],mime=m['mime'],key='media'+m['sample_id'])
         for e in [x for x in es if x['pdf_ok']]: st.write(f"📄 {e['event_id']}.pdf · Remote ECG · Source: RPM Vendor · Status: FILED"); st.download_button('View PDF',ecg_pdf_bytes(e,True),file_name=f"{e['event_id']}.pdf",mime='application/pdf',key='ehr'+e['event_id'])
         for e in [x for x in es if not x['pdf_ok']]: st.error(f"{e['event_id']} — identifier validation failed; not filed to mock EHR Media.")
     with t3:
@@ -385,7 +450,7 @@ elif menu.startswith('10 ·'):
 
 elif menu.startswith('11 ·'):
     st.header('Architecture & Product Story'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
-    st.write('**MVP epics:** timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
+    st.write('**MVP epics:** validated patient registration + MPI duplicate prevention · care-plan enrollment duration/review · care-plan-specific daily questionnaires · patient-generated audio/image samples · timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
 
