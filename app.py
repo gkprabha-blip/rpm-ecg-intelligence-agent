@@ -1,13 +1,14 @@
-import io, json, math, re
+import io, json, math, re, base64
 from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v2.8', page_icon='🫀', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v2.9', page_icon='🫀', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -323,27 +324,83 @@ def questionnaire_for(plan):
 
 def spirometry_pdf_bytes(e):
     p=PATIENTS[e['patient_id']]; buf=io.BytesIO(); c=canvas.Canvas(buf,pagesize=letter); W,H=letter
-    for page in range(1,3):
-        c.setFont('Helvetica-Bold',10); c.drawString(.55*inch,H-.45*inch,f"Patient: {p['name']}   |   MRN: {p['mrn']}   |   DOB: {p['dob']}")
-        c.setFont('Helvetica-Bold',16); c.drawString(.55*inch,H-.85*inch,'Synthetic Home Spirometry Report')
-        c.setFont('Helvetica',9); c.drawString(.55*inch,H-1.08*inch,'Portfolio prototype — simulated pulmonary function values; not a diagnostic pulmonary function test.')
-        c.setFont('Helvetica',11); y=H-1.5*inch
-        values=[('FEV1',f"{e.get('fev1',0):.2f} L"),('FVC',f"{e.get('fvc',0):.2f} L"),('FEV1/FVC',f"{e.get('fev1_fvc',0):.1f}%"),('PEF',f"{e.get('pef',0):.0f} L/min"),('FEV1 vs synthetic personal baseline',f"{e.get('fev1_pct_baseline',100):.0f}%")]
-        for label,val in values: c.drawString(.7*inch,y,f'{label}: {val}'); y-=.28*inch
-        c.setFont('Helvetica-Bold',10); c.drawString(.7*inch,y-.1*inch,'Session quality / interpretation:')
-        c.setFont('Helvetica',9); c.drawString(.7*inch,y-.35*inch,e.get('spirometry_quality','Acceptable simulated maneuver'))
-        # simple synthetic flow-volume curve
-        y0=H-4.0*inch; x0=.8*inch; c.line(x0,y0,7.2*inch,y0); c.line(x0,y0-1.6*inch,x0,y0+1.6*inch)
-        pts=[]
-        for i in range(120):
-            x=x0+i*.05*inch; peak=70*(1-math.exp(-i/5))*math.exp(-i/55); pts.append((x,y0+peak))
-        for a,b in zip(pts[:-1],pts[1:]): c.line(a[0],a[1],b[0],b[1])
-        c.setFont('Helvetica-Oblique',8); c.drawString(.55*inch,.45*inch,f'Page {page} of 2 | SYNTHETIC DATA ONLY | Human review required'); c.showPage()
+    fev1=float(e.get('fev1') or 0); fvc=float(e.get('fvc') or 0); ratio=(fev1/fvc if fvc else 0); pef=float(e.get('pef') or 0)
+    # Synthetic reference fields are intentionally illustrative; this portfolio does not calculate clinical reference equations.
+    pred_fev1=float(p.get('baseline_fev1',max(fev1,2.4))); pred_fvc=max(3.2,pred_fev1/0.78); lln_fev1=pred_fev1*0.80; lln_fvc=pred_fvc*0.80; lln_ratio=0.70
+    def z(actual,pred): return (actual-pred)/(max(pred*.12,.15))
+    c.setFont('Helvetica-Bold',10); c.drawString(.45*inch,H-.4*inch,f"Patient: {p['name']}   |   MRN: {p['mrn']}   |   DOB: {p['dob']}")
+    c.setFont('Helvetica-Bold',15); c.drawString(.45*inch,H-.75*inch,'Synthetic Home Spirometry Result')
+    c.setFont('Helvetica',8.5); c.drawString(.45*inch,H-.98*inch,'Portfolio demonstration patterned after standardized PFT-report concepts; synthetic values/reference ranges; not for diagnosis.')
+    c.drawString(.45*inch,H-1.18*inch,f"Recording: {e['event_id']}   Date/time: {e['timestamp'][:16].replace('T',' ')}   Quality: {e.get('spirometry_quality','Simulated maneuver')}")
+    # table
+    y=H-1.62*inch; cols=[.45,1.75,2.55,3.35,4.15,5.0,6.0]; headers=['Parameter','Unit','Measured','LLN*','Z-score*','% predicted*','Personal baseline']
+    c.setFont('Helvetica-Bold',8.5)
+    for x,h in zip(cols,headers): c.drawString(x*inch,y,h)
+    c.line(.45*inch,y-.08*inch,7.7*inch,y-.08*inch); y-=.30*inch
+    rows=[('FEV1','L',fev1,lln_fev1,z(fev1,pred_fev1),100*fev1/pred_fev1,100*fev1/pred_fev1),('FVC','L',fvc,lln_fvc,z(fvc,pred_fvc),100*fvc/pred_fvc,None),('FEV1/FVC','ratio',ratio,lln_ratio,z(ratio,.78),None,None),('PEF','L/min',pef,None,None,None,None)]
+    c.setFont('Helvetica',8.5)
+    for name,unit,actual,lln,zv,pct,base in rows:
+        vals=[name,unit,f'{actual:.2f}' if name!='PEF' else f'{actual:.0f}',f'{lln:.2f}' if lln is not None else '—',f'{zv:.2f}' if zv is not None else '—',f'{pct:.0f}%' if pct is not None else '—',f'{base:.0f}%' if base is not None else '—']
+        for x,v in zip(cols,vals): c.drawString(x*inch,y,str(v))
+        y-=.25*inch
+    c.setFont('Helvetica-Oblique',7.5); c.drawString(.45*inch,y-.03*inch,'* Synthetic illustrative reference fields only; no GLI/clinical reference equation is calculated in this portfolio prototype.')
+    # Flow-volume loop
+    fy=H-4.25*inch; fx=.7*inch; fw=3.0*inch; fh=1.65*inch
+    c.setFont('Helvetica-Bold',9); c.drawString(fx,fy+fh+.16*inch,'Flow–Volume Loop (synthetic)')
+    c.line(fx,fy,fx+fw,fy); c.line(fx,fy-.65*inch,fx,fy+fh)
+    c.setFont('Helvetica',7); c.drawString(fx+fw-.45*inch,fy-.16*inch,'Volume (L)'); c.saveState(); c.translate(fx-.18*inch,fy+.25*inch); c.rotate(90); c.drawString(0,0,'Flow (L/s)'); c.restoreState()
+    pts=[]
+    for i in range(100):
+        frac=i/99; vol=fvc*frac; flow=(pef/60.0)*(1-math.exp(-frac*28))*math.exp(-frac*2.0); pts.append((fx+(vol/max(fvc,1))*fw,fy+(flow/max(pef/60.0,1))*fh))
+    for a,b in zip(pts[:-1],pts[1:]): c.line(a[0],a[1],b[0],b[1])
+    insp=[]
+    for i in range(100):
+        frac=i/99; vol=fvc*(1-frac); flow=-0.45*(pef/60.0)*math.sin(math.pi*frac); insp.append((fx+(vol/max(fvc,1))*fw,fy+(flow/max(pef/60.0,1))*fh))
+    for a,b in zip(insp[:-1],insp[1:]): c.line(a[0],a[1],b[0],b[1])
+    # Volume-time curve
+    tx=4.35*inch; ty=fy; tw=3.0*inch; th=1.65*inch
+    c.setFont('Helvetica-Bold',9); c.drawString(tx,ty+th+.16*inch,'Volume–Time Curve (synthetic)')
+    c.line(tx,ty,tx+tw,ty); c.line(tx,ty,tx,ty+th); c.setFont('Helvetica',7); c.drawString(tx+tw-.35*inch,ty-.16*inch,'Time (s)'); c.saveState(); c.translate(tx-.18*inch,ty+.25*inch); c.rotate(90); c.drawString(0,0,'Volume (L)'); c.restoreState()
+    vt=[]
+    for i in range(121):
+        t=6*i/120; vol=fvc*(1-math.exp(-t/0.85)); vt.append((tx+(t/6)*tw,ty+(vol/max(fvc,1))*th))
+    for a,b in zip(vt[:-1],vt[1:]): c.line(a[0],a[1],b[0],b[1])
+    c.setFont('Helvetica-Bold',9); c.drawString(.45*inch,1.15*inch,'Workflow flag:')
+    flag='Review — FEV1 below configured personal-baseline alert limit.' if e.get('fev1_pct_baseline',100)<st.session_state.thresholds[e['patient_id']].get('fev1_pct_min',80) else 'Routine monitoring — no configured FEV1 baseline exception.'
+    c.setFont('Helvetica',8.5); c.drawString(1.25*inch,1.15*inch,flag)
+    c.setFont('Helvetica-Oblique',7.5); c.drawString(.45*inch,.55*inch,'SYNTHETIC DATA ONLY | Human clinical review required | Report design is original portfolio UI, not a copied clinical report.')
     c.save(); return buf.getvalue()
+
+def priority_badge(priority):
+    return {'HIGH':'🔴 HIGH','MEDIUM':'🟡 MEDIUM','LOW':'🟢 LOW','AWAITING DATA':'⚪ AWAITING DATA'}.get(priority, priority)
+
+def priority_rank(priority):
+    return {'HIGH':1,'MEDIUM':2,'LOW':3,'AWAITING DATA':4}.get(priority,9)
+
+def patient_name_matches(pid, query):
+    q=(query or '').strip().lower()
+    if not q: return True
+    p=PATIENTS[pid]
+    hay=' '.join([p.get('name',''),p.get('mrn',''),p.get('care_plan',''),p.get('clinician','')]).lower()
+    return q in hay
+
+def patient_picker(label,key,query_label='Search patient by name, MRN, care plan, or clinician'):
+    q=st.text_input('🔎 '+query_label,key=key+'_search',placeholder='Start typing a patient last name, MRN, care plan, or clinician…')
+    ids=[pid for pid in PATIENTS if patient_name_matches(pid,q)]
+    if not ids:
+        st.warning('No matching patients. Clear or change the search text.')
+        ids=list(PATIENTS)
+    default_pid=st.session_state.get(key+'_preferred')
+    idx=ids.index(default_pid) if default_pid in ids else 0
+    return st.selectbox(label,ids,index=idx,format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']} · {PATIENTS[x]['care_plan']}",key=key+'_select')
+
+def show_pdf_inline(pdf_bytes,height=760):
+    b64=base64.b64encode(pdf_bytes).decode('ascii')
+    components.html(f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="{height}" style="border:1px solid #ddd;border-radius:8px"></iframe>',height=height+20,scrolling=True)
 
 def education_for(plan): return EDUCATION_LIBRARY.get(plan,[])
 
-st.title('🫀 RPM Connected Care AI Platform · v2.8')
+st.title('🫀 RPM Connected Care AI Platform · v2.9')
 st.caption('Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center','3A · Education Center']
@@ -388,7 +445,7 @@ if menu.startswith('1 ·'):
 elif menu.startswith('2 ·'):
     st.header('📱 Patient Home & Daily Check-In')
     st.info('PATIENT-HOME SIMULATOR — This page simulates a patient tablet/app receiving connected-device readings and the patient completing today’s care-plan questionnaire. Clinician-assisted entry is available for missed submissions.')
-    pid=st.selectbox('Synthetic patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']} · {PATIENTS[x]['care_plan']}")
+    pid=patient_picker('Synthetic patient','home_patient')
     p=PATIENTS[pid]; prior=latest_for(pid); mode=st.radio('Submission source',['Patient tablet + connected devices','Clinician-assisted entry after phone/chat outreach'],horizontal=True)
     st.subheader('Connected devices'); st.dataframe(device_table(pid),hide_index=True,use_container_width=True)
     st.subheader('Previous stored reading')
@@ -414,7 +471,8 @@ elif menu.startswith('2 ·'):
     sample_note=st.text_input('Sample note (optional)',placeholder='Example: cough sample after morning questionnaire')
     entered_by=''
     if mode.startswith('Clinician'): entered_by=st.selectbox('Clinician entering patient-reported data',['Dr. John Doe','Dr. Aisha Morgan','Dr. Samuel Lee','RPM Nurse - Demo'])
-    if st.button('📤 Simulate Patient Daily Submission' if mode.startswith('Patient') else '☎️ Save Clinician-Assisted Entry',type='primary'):
+    st.caption('This button saves the values currently entered above as a NEW timestamped daily RPM event. It does not overwrite prior readings; it adds the new reading to trends, runs alert evaluation, and prepares the EHR-ready payload.')
+    if st.button("📤 Submit & Save Today's Readings" if mode.startswith('Patient') else '☎️ Save Clinician-Assisted Entry',type='primary'):
         nums=[int(x['event_id'].split('-')[1]) for x in events]; eid=f"EVT-{max(nums)+1:03d}"; source='Device' if mode.startswith('Patient') else f'Manual - {entered_by} via outreach'
         e={'event_id':eid,'patient_id':pid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'ecg':ecg,'ecg_hr':int(hr),'spo2':int(spo2),'weight':float(wt),'rr':int(rr),'skin_temp':float(skin_temp),'glucose':int(glucose),'sys':int(sys),'dia':int(dia),'sob':answers.get('sob')=='Yes','chest':answers.get('chest')=='Yes','dizzy':answers.get('dizzy')=='Yes','meds':answers.get('meds')=='Yes','questionnaire':answers,'pdf_ok':pdf_ok,'source':source,'fev1':fev1,'fvc':fvc,'fev1_fvc':(fev1/fvc*100 if fev1 and fvc else None),'pef':pef,'fev1_pct_baseline':(fev1/p.get('baseline_fev1',2.4)*100 if fev1 else None),'spirometry_quality':'Acceptable simulated maneuver' if fev1 else None}; events.append(e); st.session_state.last_ingested=eid
         for media_obj,media_type,ext in [(audio_sample,'Cough / breathing audio','wav'),(image_sample,'Patient image','jpg')]:
@@ -460,8 +518,19 @@ elif menu.startswith('4 ·'):
             else:
                 _reason=(_reasons[0] if _reasons else ('Unread patient message' if _unread else ('Device connectivity/battery exception' if _bad else 'Stable / routine monitoring')))
                 _action='Provider/RN review' if _pri in ['HIGH','MEDIUM'] else ('Respond to patient' if _unread else ('Technical outreach' if _bad else 'Monitor'))
-            aq.append({'Priority':_pri,'Patient':_p['name'],'Reason':_reason,'Assigned clinician':_p['clinician'],'Next action':_action})
-    if aq: st.dataframe(pd.DataFrame(aq),hide_index=True,use_container_width=True)
+            aq.append({'Priority':priority_badge(_pri),'Patient':_p['name'],'Care Plan':_p['care_plan'],'Reason':_reason,'Assigned clinician':_p['clinician'],'Next action':_action,'_rank':priority_rank(_pri)})
+    if aq:
+        st.markdown('**Action Queue** — priority is the first column: 🔴 HIGH, 🟡 MEDIUM, 🟢 LOW. Use the filters to narrow the worklist.')
+        aqdf=pd.DataFrame(aq)
+        f1,f2,f3=st.columns(3)
+        aq_search=f1.text_input('🔎 Search action queue',key='aq_search',placeholder='Patient, reason, care plan, clinician…')
+        aq_plan=f2.multiselect('Filter care plan',sorted(aqdf['Care Plan'].unique()),key='aq_plan')
+        aq_pri=f3.multiselect('Filter priority',['🔴 HIGH','🟡 MEDIUM','🟢 LOW'],key='aq_pri')
+        if aq_search: aqdf=aqdf[aqdf.astype(str).apply(lambda r:r.str.contains(aq_search,case=False,na=False).any(),axis=1)]
+        if aq_plan: aqdf=aqdf[aqdf['Care Plan'].isin(aq_plan)]
+        if aq_pri: aqdf=aqdf[aqdf['Priority'].isin(aq_pri)]
+        aqdf=aqdf.sort_values('_rank').drop(columns=['_rank'])
+        st.dataframe(aqdf,hide_index=True,use_container_width=True)
     st.divider()
     st.write('Population view for clinicians: alerts, assigned clinician, connectivity, device status, and patient communications.')
     with st.expander('➕ Create Patient / Add New Patient'):
@@ -471,9 +540,29 @@ elif menu.startswith('4 ·'):
         e=latest_for(pid); devs=st.session_state.devices.get(pid,[]); problems=sum((not d['connected']) or (not d['wifi']) or d['battery']<30 for d in devs); unread=sum(m['patient_id']==pid and m['sender']=='Patient' and not m.get('read',False) for m in st.session_state.messages); new_samples=sum(m['patient_id']==pid and not m.get('reviewed',False) for m in st.session_state.patient_samples)
         if e: pri,_,_=assess(e); spo=e['spo2']; hr=e['ecg_hr']; ast=alert_status(e)
         else: pri='AWAITING DATA'; spo='—'; hr='—'; ast='No RPM reading yet'
-        rows.append({'Patient':p['name'],'MRN':p['mrn'],'Assigned clinician':p['clinician'],'Care Plan':p['care_plan'],'SpO₂':spo,'HR':hr,'Priority':pri,'Alert status':ast,'Device issues':problems,'Unread chat':unread,'New samples':new_samples})
-    st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
-    pid=st.selectbox('Open patient clinical view',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} — {PATIENTS[x]['clinician']}")
+        rows.append({'Priority':priority_badge(pri),'Patient':p['name'],'MRN':p['mrn'],'Assigned clinician':p['clinician'],'Care Plan':p['care_plan'],'SpO₂':spo,'HR':hr,'Alert status':ast,'Device issues':problems,'Unread chat':unread,'New samples':new_samples,'_pid':pid,'_rank':priority_rank(pri)})
+    popdf=pd.DataFrame(rows)
+    st.markdown('**Population filters**')
+    f1,f2,f3,f4=st.columns(4)
+    pop_search=f1.text_input('🔎 Global search',key='pop_search',placeholder='Last name, MRN, care plan…')
+    pop_plan=f2.multiselect('Care plan',sorted(popdf['Care Plan'].unique()),key='pop_plan')
+    pop_pri=f3.multiselect('Priority',['🔴 HIGH','🟡 MEDIUM','🟢 LOW','⚪ AWAITING DATA'],key='pop_pri')
+    pop_clin=f4.multiselect('Assigned clinician',sorted(popdf['Assigned clinician'].unique()),key='pop_clin')
+    if pop_search: popdf=popdf[popdf.astype(str).apply(lambda r:r.str.contains(pop_search,case=False,na=False).any(),axis=1)]
+    if pop_plan: popdf=popdf[popdf['Care Plan'].isin(pop_plan)]
+    if pop_pri: popdf=popdf[popdf['Priority'].isin(pop_pri)]
+    if pop_clin: popdf=popdf[popdf['Assigned clinician'].isin(pop_clin)]
+    popdf=popdf.sort_values('_rank')
+    display_pop=popdf.drop(columns=['_pid','_rank'])
+    st.caption('Click/select a patient row to open that patient directly in Patient 360 & Trends.')
+    selected=st.dataframe(display_pop,hide_index=True,use_container_width=True,on_select='rerun',selection_mode='single-row',key='population_table')
+    if selected.selection.rows:
+        ridx=selected.selection.rows[0]
+        chosen_pid=popdf.iloc[ridx]['_pid']
+        st.session_state['trends_patient_preferred']=chosen_pid
+        st.session_state.selected_menu='5 · Patient 360 & Trends'
+        st.rerun()
+    pid=patient_picker('Open patient clinical view','command_patient','Search assigned patient by name, MRN, care plan, or clinician')
     p=PATIENTS[pid]; e=latest_for(pid)
     if not e:
         st.info('Patient enrolled. No RPM readings have been received yet. Use Patient Home & Daily Check-In to simulate the first submission.')
@@ -525,7 +614,7 @@ elif menu.startswith('4A ·'):
 elif menu.startswith('5 ·'):
     st.header('👤 Patient 360 & Trends')
     st.caption('Trend interpretation: baseline = patient’s recent typical range; threshold = clinician-configured alert boundary; current reading = actual measurement. Teal dashed lines are thresholds, purple points are manual entries, and red points are out-of-threshold readings.')
-    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); p=PATIENTS[pid]
+    pid=patient_picker('Patient','trends_patient'); p=PATIENTS[pid]
     st.info(f"Care plan: {p['care_plan']} | Program duration: {p.get('program_duration','Ongoing / clinician-defined')} | Next review: {p.get('next_review_date','Clinician-defined')}"); e=latest_for(pid)
     if not e:
         st.info('Patient is enrolled but has no RPM readings yet. Demographics and devices are available; trends begin after the first submission.')
@@ -545,12 +634,18 @@ elif menu.startswith('5 ·'):
         trend_chart(pid,'skin_temp','Skin Temperature',temp_unit,'temp_min','temp_max',temp_unit)
         trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
         if p['care_plan'] in SPIROMETRY_PLANS:
-            st.subheader('🫁 Spirometry Trends')
+            sh,sb=st.columns([4,1]); sh.subheader('🫁 Spirometry Trends')
             _sp=[x for x in patient_events(pid)[-7:] if x.get('fev1') is not None]
             if _sp:
-                _df=pd.DataFrame([{'Date':x['timestamp'][:10],'FEV1 (L)':x['fev1'],'FVC (L)':x['fvc'],'FEV1/FVC (%)':x['fev1_fvc'],'PEF (L/min)':x['pef'],'FEV1 % baseline':x['fev1_pct_baseline']} for x in _sp]); st.line_chart(_df.set_index('Date')[['FEV1 (L)','FVC (L)']]); st.dataframe(_df,hide_index=True,use_container_width=True)
+                latest_sp=_sp[-1]
+                if sb.button('📄 Result PDF',key='spiro_pdf_'+pid,use_container_width=True): st.session_state['show_spiro_pdf_'+pid]=not st.session_state.get('show_spiro_pdf_'+pid,False)
+                _df=pd.DataFrame([{'Date':x['timestamp'][:10],'FEV1 (L)':round(x['fev1'],2),'FVC (L)':round(x['fvc'],2),'FEV1/FVC':round(x['fev1']/x['fvc'],2),'PEF (L/min)':round(x['pef'],0),'FEV1 % personal baseline':round(x['fev1_pct_baseline'],0)} for x in _sp]); st.line_chart(_df.set_index('Date')[['FEV1 (L)','FVC (L)']]); st.dataframe(_df,hide_index=True,use_container_width=True)
+                if st.session_state.get('show_spiro_pdf_'+pid,False): show_pdf_inline(spirometry_pdf_bytes(latest_sp))
                 st.caption('Synthetic home-spirometry values. The alert engine compares FEV1 with the patient’s synthetic personal baseline; this is a portfolio rule, not a diagnostic criterion.')
-        st.subheader('ECG classification history'); st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in patient_events(pid)[-7:]]),hide_index=True,use_container_width=True)
+        eh,eb=st.columns([4,1]); eh.subheader('ECG classification history')
+        if eb.button('📄 Result PDF',key='ecg_pdf_trend_'+pid,use_container_width=True): st.session_state['show_ecg_pdf_'+pid]=not st.session_state.get('show_ecg_pdf_'+pid,False)
+        st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in patient_events(pid)[-7:]]),hide_index=True,use_container_width=True)
+        if st.session_state.get('show_ecg_pdf_'+pid,False): show_pdf_inline(ecg_pdf_bytes(e,e.get('pdf_ok',True)))
         st.subheader('🎙️📷 Patient Samples')
         ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
         if ps:
