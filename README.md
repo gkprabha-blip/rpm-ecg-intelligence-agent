@@ -44,6 +44,6 @@ python3 -m streamlit run app.py
 - New patient cough audio/photo samples create Clinical Command Center review alerts and are directly reviewable there.
 - Patient samples remain available in Patient Home, Patient 360, and Mock EHR Media.
 
-## v2.7.1 hotfix
-- Corrected the visible application version label from v2.6 to v2.7.1.
+## v2.7.2 hotfix
+- Corrected the visible application version label from v2.6 to v2.7.2.
 - Clarified that the four uppercase sidebar labels are navigation group headers; the numbered items beneath them are the clickable pages.

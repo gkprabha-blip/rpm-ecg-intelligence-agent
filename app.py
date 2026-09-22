@@ -266,22 +266,30 @@ def questionnaire_for(plan):
     }
     return templates.get(plan,templates['Cardiology'])
 
-st.title('🫀 RPM Connected Care AI Platform · v2.7.1')
+st.title('🫀 RPM Connected Care AI Platform · v2.7.2')
 st.caption('Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
-st.sidebar.markdown('### 👤 PATIENT EXPERIENCE')
-st.sidebar.caption('Patient-facing workflows ↓')
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center']
-st.sidebar.markdown('### 🩺 CLINICAL EXPERIENCE')
-st.sidebar.caption('Clinician workflows ↓')
 clinical_menu=['4 · Clinical Command Center & Action Queue','5 · Patient 360 & Trends','6 · Clinician Interventions','7 · Care Coordination']
-st.sidebar.markdown('### 🔗 INTEGRATION')
-st.sidebar.caption('Interoperability & EHR workflows ↓')
 integration_menu=['8 · ECG Documents','9 · Integration Hub / API','10 · Mock EHR','11 · Patient Identity & Duplicate Prevention','12 · Data Lineage & Audit']
-st.sidebar.markdown('### 🤖 AI & PRODUCT')
-st.sidebar.caption('Agent logic, pathways & architecture ↓')
 ai_menu=['13 · AI Agent Center','14 · Care Pathway Engine','15 · Architecture & Product']
-menu=st.sidebar.radio('Navigate',patient_menu+clinical_menu+integration_menu+ai_menu,label_visibility='collapsed')
+if 'selected_menu' not in st.session_state:
+    st.session_state.selected_menu=patient_menu[0]
+
+def nav_group(title, items):
+    st.sidebar.markdown(f'### {title}')
+    for item in items:
+        active=st.session_state.selected_menu==item
+        label=('▸ ' if active else '') + item
+        if st.sidebar.button(label,key='nav_'+item,use_container_width=True,type='primary' if active else 'secondary'):
+            st.session_state.selected_menu=item
+            st.rerun()
+
+nav_group('👤 PATIENT EXPERIENCE',patient_menu)
+nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu)
+nav_group('🔗 INTEGRATION',integration_menu)
+nav_group('🤖 AI & PRODUCT',ai_menu)
+menu=st.session_state.selected_menu
 
 if menu.startswith('1 ·'):
     st.header('🏠 Today / Care Plan')
@@ -406,10 +414,14 @@ elif menu.startswith('5 ·'):
         a,b,c,d=st.columns(4); a.metric('Care plan',p['care_plan']); b.metric('Assigned clinician',p['clinician']); c.metric('Latest source',e.get('source','Device')); d.metric('Priority',pri)
         st.subheader('Wearables & connectivity'); st.dataframe(device_table(pid),hide_index=True,use_container_width=True)
         st.subheader('7-day longitudinal trends')
-        uc1,uc2=st.columns(2)
-        with uc1: weight_unit=st.radio('Weight display unit',['lb','kg'],horizontal=True,key='weight_unit_'+pid)
-        with uc2: temp_unit=st.radio('Skin temperature display unit',['°C','°F'],horizontal=True,key='temp_unit_'+pid)
-        trend_chart(pid,'spo2','SpO₂ Trend','%','spo2_min','spo2_max'); trend_chart(pid,'ecg_hr','Heart Rate Trend','bpm','hr_min','hr_max'); trend_chart(pid,'weight',f'Weight Trend ({weight_unit})',weight_unit,'weight_min','weight_max',weight_unit); trend_chart(pid,'rr','Respiratory Rate Trend','breaths/min','rr_min','rr_max'); trend_chart(pid,'skin_temp',f'Skin Temperature Trend ({temp_unit})',temp_unit,'temp_min','temp_max',temp_unit); trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
+        trend_chart(pid,'spo2','SpO₂ Trend','%','spo2_min','spo2_max')
+        trend_chart(pid,'ecg_hr','Heart Rate Trend','bpm','hr_min','hr_max')
+        wh,wu=st.columns([3,1]); wh.markdown('#### ⚖️ Weight Trend'); weight_unit=wu.selectbox('Display unit',['lb','kg'],key='weight_trend_unit_'+pid,label_visibility='visible')
+        trend_chart(pid,'weight','Weight',weight_unit,'weight_min','weight_max',weight_unit)
+        trend_chart(pid,'rr','Respiratory Rate Trend','breaths/min','rr_min','rr_max')
+        th,tu=st.columns([3,1]); th.markdown('#### 🌡️ Skin Temperature Trend'); temp_unit=tu.selectbox('Display unit',['°C','°F'],key='temp_trend_unit_'+pid,label_visibility='visible')
+        trend_chart(pid,'skin_temp','Skin Temperature',temp_unit,'temp_min','temp_max',temp_unit)
+        trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
         st.subheader('ECG classification history'); st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in patient_events(pid)[-7:]]),hide_index=True,use_container_width=True)
         st.subheader('🎙️📷 Patient Samples')
         ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
@@ -425,13 +437,17 @@ elif menu.startswith('5 ·'):
         t=st.session_state.thresholds[pid]
         t['spo2_min'],t['spo2_max']=st.slider('SpO₂ (%) min / max',70,100,(int(t['spo2_min']),int(t['spo2_max'])))
         t['hr_min'],t['hr_max']=st.slider('Heart rate (bpm) min / max',30,180,(int(t['hr_min']),int(t['hr_max'])))
-        if weight_unit=='kg':
+        st.markdown('**Weight threshold**')
+        threshold_weight_unit=st.selectbox('Weight threshold unit',['lb','kg'],index=0 if weight_unit=='lb' else 1,key='weight_threshold_unit_'+pid)
+        if threshold_weight_unit=='kg':
             wmin=st.number_input('Weight minimum (kg)',36.0,159.0,float(t['weight_min']/2.2046226218),step=.2); wmax=st.number_input('Weight maximum (kg)',36.0,159.0,float(t['weight_max']/2.2046226218),step=.2); t['weight_min']=wmin*2.2046226218; t['weight_max']=wmax*2.2046226218
         else:
             t['weight_min']=st.number_input('Weight minimum (lb)',80.0,350.0,float(t['weight_min']),step=.5); t['weight_max']=st.number_input('Weight maximum (lb)',80.0,350.0,float(t['weight_max']),step=.5)
         t['sys_min'],t['sys_max']=st.slider('Systolic BP min / max',70,220,(int(t['sys_min']),int(t['sys_max'])))
         t['dia_min'],t['dia_max']=st.slider('Diastolic BP min / max',40,140,(int(t['dia_min']),int(t['dia_max']))); t['rr_min'],t['rr_max']=st.slider('Respiratory rate min / max',6,40,(int(t['rr_min']),int(t['rr_max'])))
-        if temp_unit=='°F':
+        st.markdown('**Skin temperature threshold**')
+        threshold_temp_unit=st.selectbox('Skin temperature threshold unit',['°C','°F'],index=0 if temp_unit=='°C' else 1,key='temp_threshold_unit_'+pid)
+        if threshold_temp_unit=='°F':
             flo=t['temp_min']*9/5+32; fhi=t['temp_max']*9/5+32; nflo,nfhi=st.slider('Skin temperature °F min / max',82.0,109.5,(float(flo),float(fhi)),step=.1); t['temp_min']=(nflo-32)*5/9; t['temp_max']=(nfhi-32)*5/9
         else: t['temp_min'],t['temp_max']=st.slider('Skin temperature °C min / max',28.0,43.0,(float(t['temp_min']),float(t['temp_max'])),step=.1)
         t['glucose_min'],t['glucose_max']=st.slider('CGM glucose mg/dL min / max',40,400,(int(t['glucose_min']),int(t['glucose_max'])))
