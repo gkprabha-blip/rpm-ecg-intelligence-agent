@@ -2,7 +2,7 @@
 
 Synthetic portfolio prototype for demonstrating end-to-end remote patient monitoring product design. It is not a medical device, diagnostic system, clinical protocol, or live EHR integration.
 
-## V2.6 product structure
+## V2.7 product structure
 
 ### Patient Experience
 - Today / Care Plan daily task list and completion progress
@@ -36,3 +36,10 @@ All patients, MRNs, readings, questionnaires, thresholds, alerts, documents and 
 python3 -m pip install -r requirements.txt
 python3 -m streamlit run app.py
 ```
+
+
+## V2.7 updates
+- Neutral teal threshold controls; red is reserved for actual out-of-threshold readings/alerts.
+- Weight display can switch between lb and kg; skin temperature between °C and °F, including trend and threshold views.
+- New patient cough audio/photo samples create Clinical Command Center review alerts and are directly reviewable there.
+- Patient samples remain available in Patient Home, Patient 360, and Mock EHR Media.

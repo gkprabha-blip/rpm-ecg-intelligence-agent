@@ -219,21 +219,29 @@ def battery_icon(level):
 def device_table(pid):
     return pd.DataFrame([{'Device':d['device'],'Measurement / mode':d.get('type',''),'Connected':'🟢 Connected' if d['connected'] else '🔴 Disconnected','Battery':battery_icon(d['battery']),'Internet':'📶 Online' if d['wifi'] else '🚫 Offline'} for d in st.session_state.devices[pid]])
 
-def trend_chart(pid, field, title, unit, min_key=None, max_key=None):
-    es=patient_events(pid)[-7:]; x=[pd.to_datetime(e['timestamp']) for e in es]; y=[e.get(field) for e in es]
+def trend_chart(pid, field, title, unit, min_key=None, max_key=None, display_unit=None):
+    es=patient_events(pid)[-7:]; x=[pd.to_datetime(e['timestamp']) for e in es]; raw=[e.get(field) for e in es]
     src=[e.get('source','Device') for e in es]; symbols=['circle' if 'Device' in a else 'diamond' for a in src]
-    t=st.session_state.thresholds[pid]; lo=t.get(min_key) if min_key else None; hi=t.get(max_key) if max_key else None
-    colors=['#D62728' if (lo is not None and v<lo) or (hi is not None and v>hi) else ('#7B2CBF' if 'Manual' in src[i] else '#2878B5') for i,v in enumerate(y)]
+    t=st.session_state.thresholds[pid]; raw_lo=t.get(min_key) if min_key else None; raw_hi=t.get(max_key) if max_key else None
+    def cv(v):
+        if v is None: return v
+        if field=='weight' and display_unit=='kg': return v/2.2046226218
+        if field=='skin_temp' and display_unit=='°F': return v*9/5+32
+        return v
+    y=[cv(v) for v in raw]; lo=cv(raw_lo); hi=cv(raw_hi)
+    colors=['#D62728' if (raw_lo is not None and v<raw_lo) or (raw_hi is not None and v>raw_hi) else ('#7B2CBF' if 'Manual' in src[i] else '#2878B5') for i,v in enumerate(raw)]
     custom=[]
     for e in es:
         device=source_device(PATIENTS[pid]['care_plan'], field, e.get('source','Device'))
         custom.append([e['event_id'],e.get('source','Device'),device,e['ecg']])
-    fig=go.Figure(go.Scatter(x=x,y=y,mode='lines+markers+text',text=[str(v) for v in y],textposition='top center',line={'color':'#7A7A7A'},marker={'size':11,'symbol':symbols,'color':colors},customdata=custom,hovertemplate='<b>Value:</b> %{y} '+unit+'<br><b>Timestamp:</b> %{x|%b %d, %Y %I:%M %p}<br><b>Entry source:</b> %{customdata[1]}<br><b>Device:</b> %{customdata[2]}<br><b>Event:</b> %{customdata[0]}<br><b>ECG:</b> %{customdata[3]}<extra></extra>'))
+    shown_unit=display_unit or unit
+    labels=[f'{v:.1f}' if isinstance(v,float) else str(v) for v in y]
+    fig=go.Figure(go.Scatter(x=x,y=y,mode='lines+markers+text',text=labels,textposition='top center',line={'color':'#7A7A7A'},marker={'size':11,'symbol':symbols,'color':colors},customdata=custom,hovertemplate='<b>Value:</b> %{y:.1f} '+shown_unit+'<br><b>Timestamp:</b> %{x|%b %d, %Y %I:%M %p}<br><b>Entry source:</b> %{customdata[1]}<br><b>Device:</b> %{customdata[2]}<br><b>Event:</b> %{customdata[0]}<br><b>ECG:</b> %{customdata[3]}<extra></extra>'))
     if lo is not None: fig.add_hline(y=lo,line_dash='dash',line_color='#008C95',annotation_text='Min threshold')
     if hi is not None: fig.add_hline(y=hi,line_dash='dash',line_color='#008C95',annotation_text='Max threshold')
-    fig.update_layout(title=title,height=310,margin=dict(l=20,r=20,t=55,b=20),yaxis_title=unit,hovermode='closest')
+    fig.update_layout(title=title,height=310,margin=dict(l=20,r=20,t=55,b=20),yaxis_title=shown_unit,hovermode='closest')
     st.plotly_chart(fig,use_container_width=True)
-    st.caption('● Device-generated   ◆ Manual clinician-assisted   🔵 Device-generated normal-range point   🟣 Manual clinician-assisted point   🔴 Out-of-threshold reading   Teal dashed lines = configured min/max limits')
+    st.caption('● Device-generated   ◆ Manual clinician-assisted   🔵 Device-generated in-range   🟣 Manual clinician-assisted in-range   🔴 Out-of-threshold reading   Teal dashed lines = configured min/max limits')
 
 def source_device(plan, field, source):
     if 'Manual' in source: return 'Patient-reported / clinician-entered'
@@ -318,7 +326,7 @@ elif menu.startswith('2 ·'):
         e={'event_id':eid,'patient_id':pid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'ecg':ecg,'ecg_hr':int(hr),'spo2':int(spo2),'weight':float(wt),'rr':int(rr),'skin_temp':float(skin_temp),'glucose':int(glucose),'sys':int(sys),'dia':int(dia),'sob':answers.get('sob')=='Yes','chest':answers.get('chest')=='Yes','dizzy':answers.get('dizzy')=='Yes','meds':answers.get('meds')=='Yes','questionnaire':answers,'pdf_ok':pdf_ok,'source':source}; events.append(e); st.session_state.last_ingested=eid
         for media_obj,media_type,ext in [(audio_sample,'Cough / breathing audio','wav'),(image_sample,'Patient image','jpg')]:
             if media_obj is not None:
-                st.session_state.patient_samples.append({'sample_id':f"SMP-{len(st.session_state.patient_samples)+1:03d}",'patient_id':pid,'event_id':eid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'type':media_type,'note':sample_note,'filename':f"{pid}_{eid}_{media_type.split()[0].lower()}.{ext}",'mime':'audio/wav' if ext=='wav' else 'image/jpeg','bytes':media_obj.getvalue()})
+                st.session_state.patient_samples.append({'sample_id':f"SMP-{len(st.session_state.patient_samples)+1:03d}",'patient_id':pid,'event_id':eid,'timestamp':datetime.now().replace(microsecond=0).isoformat(),'type':media_type,'note':sample_note,'filename':f"{pid}_{eid}_{media_type.split()[0].lower()}.{ext}",'mime':'audio/wav' if ext=='wav' else 'image/jpeg','bytes':media_obj.getvalue(),'reviewed':False})
                 log(eid,f'{media_type} captured and filed to Patient Samples / Mock EHR Media')
         for step in ['Daily questionnaire submitted','RPM data ingested','Clinical dashboard updated','Threshold/AI alert evaluation completed','EHR-ready payload generated']: log(eid,step)
         pri,reasons,_=assess(e); st.success(f'{eid} saved as a NEW timestamped RPM event. Existing history was preserved. Source: {source}.'); a,b,c=st.columns(3); a.metric('Priority',pri); b.metric('SpO₂',f"{spo2}%"); c.metric('Heart rate',f"{hr} bpm")
@@ -332,8 +340,12 @@ elif menu.startswith('4 ·'):
         _e=latest_for(_pid)
         if _e:
             _pri,_reasons,_=assess(_e); _unread=sum(1 for m in st.session_state.messages if m['patient_id']==_pid and m['sender']=='Patient' and not m.get('read',False)); _bad=[d for d in st.session_state.devices.get(_pid,[]) if not d.get('connected') or not d.get('wifi') or d.get('battery',100)<25]
-            _reason=(_reasons[0] if _reasons else ('Unread patient message' if _unread else ('Device connectivity/battery exception' if _bad else 'Stable / routine monitoring')))
-            _action='Provider/RN review' if _pri in ['HIGH','MEDIUM'] else ('Respond to patient' if _unread else ('Technical outreach' if _bad else 'Monitor'))
+            _samples=[m for m in st.session_state.patient_samples if m['patient_id']==_pid and not m.get('reviewed',False)]
+            if _samples:
+                _reason=f"New patient sample received: {_samples[-1]['type']}"; _action='Review patient sample'; _pri='MEDIUM' if _pri=='LOW' else _pri
+            else:
+                _reason=(_reasons[0] if _reasons else ('Unread patient message' if _unread else ('Device connectivity/battery exception' if _bad else 'Stable / routine monitoring')))
+                _action='Provider/RN review' if _pri in ['HIGH','MEDIUM'] else ('Respond to patient' if _unread else ('Technical outreach' if _bad else 'Monitor'))
             aq.append({'Priority':_pri,'Patient':_p['name'],'Reason':_reason,'Assigned clinician':_p['clinician'],'Next action':_action})
     if aq: st.dataframe(pd.DataFrame(aq),hide_index=True,use_container_width=True)
     st.divider()
@@ -342,10 +354,10 @@ elif menu.startswith('4 ·'):
         patient_creation_panel('Clinical Dashboard','clinical')
     rows=[]
     for pid,p in PATIENTS.items():
-        e=latest_for(pid); devs=st.session_state.devices.get(pid,[]); problems=sum((not d['connected']) or (not d['wifi']) or d['battery']<30 for d in devs); unread=sum(m['patient_id']==pid and m['sender']=='Patient' and not m.get('read',False) for m in st.session_state.messages)
+        e=latest_for(pid); devs=st.session_state.devices.get(pid,[]); problems=sum((not d['connected']) or (not d['wifi']) or d['battery']<30 for d in devs); unread=sum(m['patient_id']==pid and m['sender']=='Patient' and not m.get('read',False) for m in st.session_state.messages); new_samples=sum(m['patient_id']==pid and not m.get('reviewed',False) for m in st.session_state.patient_samples)
         if e: pri,_,_=assess(e); spo=e['spo2']; hr=e['ecg_hr']; ast=alert_status(e)
         else: pri='AWAITING DATA'; spo='—'; hr='—'; ast='No RPM reading yet'
-        rows.append({'Patient':p['name'],'MRN':p['mrn'],'Assigned clinician':p['clinician'],'Care Plan':p['care_plan'],'SpO₂':spo,'HR':hr,'Priority':pri,'Alert status':ast,'Device issues':problems,'Unread chat':unread})
+        rows.append({'Patient':p['name'],'MRN':p['mrn'],'Assigned clinician':p['clinician'],'Care Plan':p['care_plan'],'SpO₂':spo,'HR':hr,'Priority':pri,'Alert status':ast,'Device issues':problems,'Unread chat':unread,'New samples':new_samples})
     st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
     pid=st.selectbox('Open patient clinical view',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} — {PATIENTS[x]['clinician']}")
     p=PATIENTS[pid]; e=latest_for(pid)
@@ -361,6 +373,18 @@ elif menu.startswith('4 ·'):
     st.subheader('Latest daily questionnaire')
     qa=e.get('questionnaire',{'sob':'Yes' if e.get('sob') else 'No','chest':'Yes' if e.get('chest') else 'No','dizzy':'Yes' if e.get('dizzy') else 'No','meds':'Yes' if e.get('meds') else 'No'}); st.dataframe(pd.DataFrame([{'Question / field':k.replace('_',' ').title(),'Patient answer':v} for k,v in qa.items()]),hide_index=True,use_container_width=True)
     st.subheader('Alert reasons'); [st.write('• '+r) for r in reasons] if reasons else st.success('No active configured threshold exception.')
+    clinical_samples=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
+    if clinical_samples:
+        pending=[m for m in clinical_samples if not m.get('reviewed',False)]
+        if pending: st.error(f"🎙️📷 {len(pending)} NEW patient sample(s) require clinical review.")
+        st.subheader('🎙️📷 Patient Samples — Clinical Review')
+        for m in reversed(clinical_samples):
+            status='NEW — review required' if not m.get('reviewed',False) else 'Reviewed'
+            st.write(f"**{m['sample_id']} · {m['type']} · {status}**  |  {m['timestamp'][:16].replace('T',' ')}  |  {m['note'] or 'No note'}")
+            if m['mime'].startswith('audio'): st.audio(m['bytes'])
+            elif m['mime'].startswith('image'): st.image(m['bytes'],width=320)
+            if not m.get('reviewed',False) and st.button(f"Mark {m['sample_id']} reviewed",key='review_'+m['sample_id']):
+                m['reviewed']=True; log(m['event_id'],f"Patient sample {m['sample_id']} reviewed by clinician"); st.rerun()
     unread=[m for m in st.session_state.messages if m['patient_id']==pid and m['sender']=='Patient' and not m.get('read',False)]
     if unread: st.error(f"💬 {len(unread)} unread patient message(s). Open Communication Center for timely intervention.")
 
@@ -378,7 +402,10 @@ elif menu.startswith('5 ·'):
         a,b,c,d=st.columns(4); a.metric('Care plan',p['care_plan']); b.metric('Assigned clinician',p['clinician']); c.metric('Latest source',e.get('source','Device')); d.metric('Priority',pri)
         st.subheader('Wearables & connectivity'); st.dataframe(device_table(pid),hide_index=True,use_container_width=True)
         st.subheader('7-day longitudinal trends')
-        trend_chart(pid,'spo2','SpO₂ Trend','%','spo2_min','spo2_max'); trend_chart(pid,'ecg_hr','Heart Rate Trend','bpm','hr_min','hr_max'); trend_chart(pid,'weight','Weight Trend','lb','weight_min','weight_max'); trend_chart(pid,'rr','Respiratory Rate Trend','breaths/min','rr_min','rr_max'); trend_chart(pid,'skin_temp','Skin Temperature Trend','°C','temp_min','temp_max'); trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
+        uc1,uc2=st.columns(2)
+        with uc1: weight_unit=st.radio('Weight display unit',['lb','kg'],horizontal=True,key='weight_unit_'+pid)
+        with uc2: temp_unit=st.radio('Skin temperature display unit',['°C','°F'],horizontal=True,key='temp_unit_'+pid)
+        trend_chart(pid,'spo2','SpO₂ Trend','%','spo2_min','spo2_max'); trend_chart(pid,'ecg_hr','Heart Rate Trend','bpm','hr_min','hr_max'); trend_chart(pid,'weight',f'Weight Trend ({weight_unit})',weight_unit,'weight_min','weight_max',weight_unit); trend_chart(pid,'rr','Respiratory Rate Trend','breaths/min','rr_min','rr_max'); trend_chart(pid,'skin_temp',f'Skin Temperature Trend ({temp_unit})',temp_unit,'temp_min','temp_max',temp_unit); trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
         st.subheader('ECG classification history'); st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in patient_events(pid)[-7:]]),hide_index=True,use_container_width=True)
         st.subheader('🎙️📷 Patient Samples')
         ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
@@ -390,13 +417,20 @@ elif menu.startswith('5 ·'):
             with st.expander(f"{x['timestamp'][:10]} · {x['event_id']} · {x.get('source','Device')}"):
                 qa=x.get('questionnaire',{'sob':'Yes' if x.get('sob') else 'No','chest':'Yes' if x.get('chest') else 'No','dizzy':'Yes' if x.get('dizzy') else 'No','meds':'Yes' if x.get('meds') else 'No'}); st.dataframe(pd.DataFrame([{'Question / field':k.replace('_',' ').title(),'Answer':v} for k,v in qa.items()]),hide_index=True,use_container_width=True)
     with right:
-        st.subheader('⚙️ Patient Alert Threshold Settings'); st.info('These controls SET the patient-specific minimum and maximum limits. They are not today’s readings. Trend points turn RED only when a reading falls outside the configured limits; teal dashed lines show the configured limits. Manual clinician-assisted readings appear purple so provenance is visible at a glance.')
+        st.subheader('⚙️ Patient Alert Threshold Settings'); st.info("These controls SET the patient-specific minimum and maximum limits. They are not today’s readings. Threshold controls use the app’s TEAL accent so they are visually neutral. Trend points turn RED only when an actual reading falls outside the configured limits; teal dashed lines show those configured limits. Manual clinician-assisted readings appear purple so provenance is visible at a glance.")
         t=st.session_state.thresholds[pid]
         t['spo2_min'],t['spo2_max']=st.slider('SpO₂ (%) min / max',70,100,(int(t['spo2_min']),int(t['spo2_max'])))
         t['hr_min'],t['hr_max']=st.slider('Heart rate (bpm) min / max',30,180,(int(t['hr_min']),int(t['hr_max'])))
-        t['weight_min']=st.number_input('Weight minimum (lb)',80.0,350.0,float(t['weight_min']),step=.5); t['weight_max']=st.number_input('Weight maximum (lb)',80.0,350.0,float(t['weight_max']),step=.5)
+        if weight_unit=='kg':
+            wmin=st.number_input('Weight minimum (kg)',36.0,159.0,float(t['weight_min']/2.2046226218),step=.2); wmax=st.number_input('Weight maximum (kg)',36.0,159.0,float(t['weight_max']/2.2046226218),step=.2); t['weight_min']=wmin*2.2046226218; t['weight_max']=wmax*2.2046226218
+        else:
+            t['weight_min']=st.number_input('Weight minimum (lb)',80.0,350.0,float(t['weight_min']),step=.5); t['weight_max']=st.number_input('Weight maximum (lb)',80.0,350.0,float(t['weight_max']),step=.5)
         t['sys_min'],t['sys_max']=st.slider('Systolic BP min / max',70,220,(int(t['sys_min']),int(t['sys_max'])))
-        t['dia_min'],t['dia_max']=st.slider('Diastolic BP min / max',40,140,(int(t['dia_min']),int(t['dia_max']))); t['rr_min'],t['rr_max']=st.slider('Respiratory rate min / max',6,40,(int(t['rr_min']),int(t['rr_max']))); t['temp_min'],t['temp_max']=st.slider('Skin temperature °C min / max',28.0,43.0,(float(t['temp_min']),float(t['temp_max'])),step=.1); t['glucose_min'],t['glucose_max']=st.slider('CGM glucose mg/dL min / max',40,400,(int(t['glucose_min']),int(t['glucose_max'])))
+        t['dia_min'],t['dia_max']=st.slider('Diastolic BP min / max',40,140,(int(t['dia_min']),int(t['dia_max']))); t['rr_min'],t['rr_max']=st.slider('Respiratory rate min / max',6,40,(int(t['rr_min']),int(t['rr_max'])))
+        if temp_unit=='°F':
+            flo=t['temp_min']*9/5+32; fhi=t['temp_max']*9/5+32; nflo,nfhi=st.slider('Skin temperature °F min / max',82.0,109.5,(float(flo),float(fhi)),step=.1); t['temp_min']=(nflo-32)*5/9; t['temp_max']=(nfhi-32)*5/9
+        else: t['temp_min'],t['temp_max']=st.slider('Skin temperature °C min / max',28.0,43.0,(float(t['temp_min']),float(t['temp_max'])),step=.1)
+        t['glucose_min'],t['glucose_max']=st.slider('CGM glucose mg/dL min / max',40,400,(int(t['glucose_min']),int(t['glucose_max'])))
         st.success('Thresholds active for this synthetic patient.')
         st.caption('In a real clinical product, threshold changes would require role-based authorization, clinical governance and audit logging.')
 elif menu.startswith('7 ·'):
@@ -522,7 +556,7 @@ elif menu.startswith('14 ·'):
     st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
 
 elif menu.startswith('15 ·'):
-    st.header('🏗️ Architecture & Product Story'); st.info('V2.6 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
+    st.header('🏗️ Architecture & Product Story'); st.info('V2.7 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
     st.write('**MVP epics:** validated patient registration + MPI duplicate prevention · care-plan enrollment duration/review · care-plan-specific daily questionnaires · patient-generated audio/image samples · timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
