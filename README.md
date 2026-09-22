@@ -1,28 +1,23 @@
-# RPM Connected Care AI Platform — v2.2
+# RPM Connected Care AI Platform — v2.3
 
-Synthetic healthcare product portfolio prototype demonstrating an end-to-end Remote Patient Monitoring workflow.
+Synthetic portfolio prototype for demonstrating end-to-end Remote Patient Monitoring product workflows. No real PHI is included and the application is not for clinical use.
 
-## What v2.2 adds
-- Patient Home & Daily Check-In with separate patient/device vs clinician-assisted entry provenance
-- Cardiology and Cirrhosis daily questionnaire templates and questionnaire history
-- Patient-specific min/max alert thresholds
-- 7-day SpO2, heart-rate, and weight charts with visible values and rich hover details
-- Device vs manual-entry provenance in trend points
-- Wearable/device connectivity, battery, and internet status
-- Assigned clinicians per patient
-- Two-way secure-chat workflow simulator with automated acknowledgement and clinician notification
-- Video-call workflow simulator (no real camera/audio)
-- Clinical Command Center, Patient 360, alerts, clinician interventions, ECG PDF validation, API/FHIR view, mock EHR, lineage/audit
-- Fixes navigation ambiguity between screen 1 and screens 10/11
-
-## Safety
-100% synthetic data. Portfolio demonstration only. Not a diagnostic system, medical device, production EHR integration, or live telehealth service. Patient-specific thresholds are demo values and not clinical recommendations.
+## v2.3 highlights
+- ECG PDF action moved to the top of each ECG document record.
+- Patient-specific alert threshold controls are clearly separated from current readings.
+- Trend charts show actual values, timestamps, source/provenance, device name, event ID, and threshold status on hover.
+- Red trend points indicate readings outside configured patient thresholds; purple dashed lines represent configured min/max thresholds.
+- Added respiratory rate, skin temperature, and continuous glucose monitoring trends.
+- Cardiology demo uses Everion as a continuous wearable for HR, SpO2, RR, and skin temperature; Cirrhosis demonstrates more individual-device collection for SpO2, BP/HR, and weight.
+- Added Nonin Pulse Oximeter, Welch Allyn BP Device, Welch Allyn Weighing Device, and Dexcom G7 CGM device labels.
+- Dexcom G7 is represented as a continuous glucose monitor (CGM); CGM measures interstitial glucose and is not a conventional finger-stick blood glucose meter.
+- Device vs clinician-assisted manual provenance remains visible throughout trends and hover details.
 
 ## Run
 ```bash
-pip install -r requirements.txt
-streamlit run app.py
+python3 -m pip install -r requirements.txt
+python3 -m streamlit run app.py
 ```
 
-## Streamlit Community Cloud
-Replace `app.py`, `requirements.txt`, and `README.md` in the existing GitHub repository. Streamlit should redeploy from the main branch.
+## Safety
+All patients, MRNs, readings, questionnaires, alerts, thresholds, ECG waveforms, and EHR workflows are synthetic demonstration data. Thresholds are demo configuration values and are not clinical recommendations. Clinical decisions remain human-in-the-loop.
