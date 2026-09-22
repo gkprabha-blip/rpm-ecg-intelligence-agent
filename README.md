@@ -1,31 +1,16 @@
-# RPM Connected Care AI Platform — V3.1
+# RPM Connected Care AI Platform v3.2
 
-Synthetic healthcare product-management portfolio prototype built with Streamlit. No real patient data is used.
+Synthetic healthcare product portfolio demonstrating connected-device RPM, patient/clinician workflows, care pathways, ECG and home-spirometry reports, EHR interoperability, patient education, role-based demo access, and discharge-to-RPM candidate segmentation.
 
-## V3.1 highlights
-- Demo authentication and role-based navigation for Patient, Clinician, Provider, RPM Admin, Integrations, and Portfolio Admin.
-- Admin-only **Logins & Roles** page with masked/revealable demo passwords and access descriptions.
-- Default portfolio session opens as **Admin**; users can sign out to test other roles.
-- PDF previews are rendered as images for Streamlit Cloud/browser reliability, with PDF download fallback.
-- ECG and spirometry history tables display newest timestamps first.
-- Refined metric/table typography and tighter trend-unit placement.
-- Separate patient-sample save action.
-- Existing V2.9 population prioritization, search/filtering, education, questionnaires, care pathways, spirometry, ECG, EHR and audit workflows retained.
+## V3.2 highlights
+- Modernized core content icons using Material Symbols rather than decorative emoji.
+- Larger, bolder table column headers and stronger page/section typography.
+- Subtler password visibility control.
+- New **RPM Fit & Transition Queue** for synthetic patients approaching discharge from acute care.
+- Illustrative 13-point RPM Fit Score with human enrollment gate and safety hard-stop logic.
+- Search/filterable transition registry segmented into RPM FIT, REVIEW / ENABLE, and NOT CURRENTLY FIT.
 
-## Demo credentials
-- Admin / ADMIN
-- Patient / Patient Password
-- Clinician / Clinician Password
-- Provider / Provider Password
-- RPM Admin / RPM Admin Password
-- Integrations / Integrations Password
+## Important safety / portfolio note
+The RPM Fit Score and cut points are synthetic product-design assumptions for demonstration only. They are not a validated clinical prediction rule, coverage determination, or autonomous enrollment algorithm. Production use would require clinical governance, validation, equity/bias assessment, workflow testing, privacy/security review, and human confirmation of medical necessity, consent, safety, device readiness, and program capacity.
 
-These credentials intentionally demonstrate portfolio RBAC only. Production healthcare systems should use enterprise identity/SSO, MFA, server-side authorization, secure secret management and auditable least-privilege access.
-
-
-## V3.1 visual design refresh
-- Modern connected-care brand mark replaces the anatomical heart.
-- Trend panels use rounded clinical cards with consistent headers.
-- Weight and skin-temperature unit selectors are compact and aligned with their trend headings.
-- ECG and spirometry result actions remain available in context, including PDF download.
-- Typography, table headers, spacing, and clinical-status colors are refined for a calmer modern UI.
+All patients, credentials, measurements, reports, and workflows are synthetic.

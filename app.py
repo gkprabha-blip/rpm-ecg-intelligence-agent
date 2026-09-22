@@ -9,7 +9,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v3.1', page_icon=':material/monitor_heart:', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v3.2', page_icon=':material/monitor_heart:', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -426,6 +426,25 @@ def show_pdf_inline(pdf_bytes,height=760):
 
 def education_for(plan): return EDUCATION_LIBRARY.get(plan,[])
 
+# --- V3.2 synthetic discharge-to-RPM candidate registry ---
+DISCHARGE_CANDIDATES=[
+ {'patient':'Avery Johnson','mrn':'ACUTE-2001','care_plan':'Heart Failure','discharge':'Today','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Recent HF admission; weight/BP/HR/SpO2 trending useful after discharge.'},
+ {'patient':'Noah Williams','mrn':'ACUTE-2002','care_plan':'Hypertension','discharge':'Tomorrow','condition_fit':3,'measurable':2,'transition_risk':1,'management_need':2,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Medication change with need for home BP trend review.'},
+ {'patient':'Sophia Martinez','mrn':'ACUTE-2003','care_plan':'Lung Transplant','discharge':'Today','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Post-transplant home SpO2/spirometry/symptom surveillance.'},
+ {'patient':'Liam Brown','mrn':'ACUTE-2004','care_plan':'COPD / Pulmonary','discharge':'2 days','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':1,'support':0,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'COPD exacerbation; needs device training/support before discharge.'},
+ {'patient':'Emma Davis','mrn':'ACUTE-2005','care_plan':'Joint / Knee Replacement','discharge':'Today','condition_fit':2,'measurable':1,'transition_risk':1,'management_need':1,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Post-operative recovery may benefit from symptom/activity follow-up.'},
+ {'patient':'Oliver Wilson','mrn':'ACUTE-2006','care_plan':'Diabetes / CGM','discharge':'Tomorrow','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':1,'support':1,'connectivity':0,'team_capacity':1,'hard_stop':False,'reason':'Glucose management need; connectivity plan required.'},
+ {'patient':'Isabella Moore','mrn':'ACUTE-2007','care_plan':'Acute Kidney Injury (AKI)','discharge':'Today','condition_fit':2,'measurable':1,'transition_risk':2,'management_need':1,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Post-AKI transition needs follow-up; labs remain outside this device-only prototype.'},
+ {'patient':'Ethan Taylor','mrn':'ACUTE-2008','care_plan':'Cardiology','discharge':'Pending','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':True,'reason':'Currently clinically unstable; inpatient/urgent management takes precedence over RPM enrollment.'},
+ {'patient':'Mia Anderson','mrn':'ACUTE-2009','care_plan':'Respiratory Infection - Adult','discharge':'Tomorrow','condition_fit':2,'measurable':2,'transition_risk':1,'management_need':1,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Short-term oxygen/temperature/symptom monitoring may support recovery.'},
+ {'patient':'Lucas Thomas','mrn':'ACUTE-2010','care_plan':'Coronary Artery Disease (CAD)','discharge':'2 days','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':0,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Clinical fit exists, but patient has not consented to RPM.'}
+]
+def fit_score(r): return sum(r[k] for k in ['condition_fit','measurable','transition_risk','management_need','willing','support','connectivity','team_capacity'])
+def fit_bucket(r):
+    if r['hard_stop'] or not r['willing']: return 'NOT CURRENTLY FIT'
+    sc=fit_score(r)
+    return 'RPM FIT' if sc>=9 else ('REVIEW / ENABLE' if sc>=6 else 'NOT CURRENTLY FIT')
+
 # --- V3.0 demo authentication / role-based navigation ---
 DEMO_ACCOUNTS={
  'Patient':{'password':'Patient Password','role':'Patient','description':'Own patient experience, daily tasks, education, messages and results.'},
@@ -439,7 +458,10 @@ st.markdown(r'''<style>
 :root{--rpm-teal:#087F8C;--rpm-blue:#2F80ED;--rpm-ink:#243244;--rpm-muted:#667085;--rpm-line:#D8E4EA;--rpm-soft:#F5FAFB}
 [data-testid="stMetricLabel"] p{font-size:.96rem!important;font-weight:700!important;color:var(--rpm-ink)!important}
 [data-testid="stMetricValue"]{font-size:1.32rem!important;font-weight:650!important}
-[data-testid="stDataFrame"] thead th{font-size:.98rem!important;font-weight:750!important}
+[data-testid="stDataFrame"] thead th{font-size:1.05rem!important;font-weight:800!important}
+[data-testid="stDataFrame"] [role="columnheader"]{font-size:1.05rem!important;font-weight:800!important;color:var(--rpm-ink)!important}
+[data-testid="stDataFrame"] [role="columnheader"] *{font-size:1.05rem!important;font-weight:800!important}
+h1{font-size:2.05rem!important;font-weight:780!important} h2{font-size:1.55rem!important;font-weight:760!important} h3{font-size:1.22rem!important;font-weight:740!important}
 .rpm-brand{display:flex;align-items:center;gap:.65rem;font-size:2.15rem;line-height:1.15;font-weight:760;color:#202938;margin:.2rem 0 1rem}
 .rpm-logo{display:inline-flex;align-items:center}
 .trend-head{display:flex;align-items:center;gap:.5rem;font-size:1.02rem;font-weight:750;color:var(--rpm-ink);margin:.05rem 0 .25rem}
@@ -451,7 +473,7 @@ div[data-testid="stSelectbox"] label p{font-size:.78rem!important;font-weight:65
 .role-chip{font-size:.88rem;font-weight:600}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.1</span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.2</span></div>''', unsafe_allow_html=True)
     st.subheader('🔐 Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -462,11 +484,11 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.1</span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.2</span></div>''', unsafe_allow_html=True)
 st.caption(f'Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data • Signed in as {CURRENT_USER} ({CURRENT_ROLE})')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center','3A · Education Center']
-clinical_menu=['4 · Clinical Command Center & Action Queue','4A · Education & Questionnaire Library','5 · Patient 360 & Trends','6 · Clinician Interventions','7 · Care Coordination']
+clinical_menu=['4 · Clinical Command Center & Action Queue','4A · Education & Questionnaire Library','4B · RPM Fit & Transition Queue','5 · Patient 360 & Trends','6 · Clinician Interventions','7 · Care Coordination']
 integration_menu=['8 · ECG & Spirometry Documents','9 · Integration Hub / API','10 · Mock EHR','11 · Patient Identity & Duplicate Prevention','12 · Data Lineage & Audit']
 ai_menu=['13 · AI Agent Center','14 · Care Pathway Engine','15 · Architecture & Product']
 if CURRENT_USER=='Admin': ai_menu.append('15A · Logins & Roles')
@@ -495,7 +517,7 @@ if st.sidebar.button('Sign out',use_container_width=True): st.session_state.auth
 menu=st.session_state.selected_menu
 
 if menu.startswith('1 ·'):
-    st.header('🏠 Today / Care Plan')
+    st.header(':material/home_health: Today / Care Plan')
     st.caption('Patient-facing daily worklist: what is due, what is complete, device readiness, and how to contact the care team.')
     pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['care_plan']}",key='today_patient')
     p=PATIENTS[pid]; es=patient_events(pid); latest=es[-1] if es else None
@@ -512,7 +534,7 @@ if menu.startswith('1 ·'):
     st.info('Use **Patient Home & Daily Check-In** to simulate today’s measurements, questionnaire, ECG, or requested patient sample. Use **Communication Center** for chat/video simulation.')
 
 elif menu.startswith('2 ·'):
-    st.header('📱 Patient Home & Daily Check-In')
+    st.header(':material/monitor_heart: Patient Home & Daily Check-In')
     st.info('PATIENT-HOME SIMULATOR — This page simulates a patient tablet/app receiving connected-device readings and the patient completing today’s care-plan questionnaire. Clinician-assisted entry is available for missed submissions.')
     pid=patient_picker('Synthetic patient','home_patient')
     p=PATIENTS[pid]; prior=latest_for(pid); mode=st.radio('Submission source',['Patient tablet + connected devices','Clinician-assisted entry after phone/chat outreach'],horizontal=True)
@@ -540,16 +562,16 @@ elif menu.startswith('2 ·'):
         pri,reasons,_=assess(e); st.success(f'{eid} saved as a NEW timestamped RPM event. Existing history was preserved. Source: {source}.'); a,b,c=st.columns(3); a.metric('Priority',pri); b.metric('SpO₂',f"{spo2}%"); c.metric('Heart rate',f"{hr} bpm")
         if reasons: st.warning('Alert reasons: '+' | '.join(reasons))
 
-    st.subheader(f"📋 {p['care_plan']} Daily Questionnaire")
+    st.subheader(f":material/checklist: {p['care_plan']} Daily Questionnaire")
     answers={}
     for key,q in questionnaire_for(p['care_plan']): answers[key]=st.radio(q,['No','Yes'],horizontal=True,key=f'q_{pid}_{key}',index=1 if key=='meds' else 0)
-    if st.button('💾 Save Daily Questionnaire',key='save_q_'+pid):
+    if st.button(':material/save: Save Daily Questionnaire',key='save_q_'+pid):
         target=latest_for(pid)
         if target:
             target['questionnaire']=answers; target['sob']=answers.get('sob')=='Yes'; target['chest']=answers.get('chest')=='Yes'; target['dizzy']=answers.get('dizzy')=='Yes'; target['meds']=answers.get('meds')=='Yes'; log(target['event_id'],'Daily questionnaire submitted'); st.success('Daily questionnaire saved to the latest patient event.')
         else: st.warning('Save today’s readings first, then save the questionnaire.')
 
-    st.subheader('🎙️📷 Patient Samples')
+    st.subheader(':material/multimedia: Patient Samples')
     st.caption('Optional patient-generated media. Samples use their own save action and are routed to the clinical review queue.')
     audio_sample=st.audio_input('Record cough / breathing audio (optional)')
     image_sample=st.camera_input('Take a patient photo / symptom image (optional)')
@@ -663,7 +685,7 @@ elif menu.startswith('4 ·'):
     if clinical_samples:
         pending=[m for m in clinical_samples if not m.get('reviewed',False)]
         if pending: st.error(f"🎙️📷 {len(pending)} NEW patient sample(s) require clinical review.")
-        st.subheader('🎙️📷 Patient Samples — Clinical Review')
+        st.subheader(':material/multimedia: Patient Samples — Clinical Review')
         for m in reversed(clinical_samples):
             status='NEW — review required' if not m.get('reviewed',False) else 'Reviewed'
             st.write(f"**{m['sample_id']} · {m['type']} · {status}**  |  {m['timestamp'][:16].replace('T',' ')}  |  {m['note'] or 'No note'}")
@@ -690,6 +712,35 @@ elif menu.startswith('4A ·'):
         st.dataframe(pd.DataFrame([{'Question':q} for _,q in questionnaire_for(plan)]),hide_index=True,use_container_width=True)
         if st.button('Send this questionnaire ad hoc',type='primary'):
             st.session_state.questionnaire_assignments.append({'assignment_id':f'Q-{len(st.session_state.questionnaire_assignments)+1:03d}','patient_id':pid,'plan':plan,'assigned_by':PATIENTS[pid]['clinician'],'assigned_at':datetime.now().isoformat(),'completed':False}); st.success('Ad-hoc questionnaire sent to patient.')
+
+elif menu.startswith('4B ·'):
+    st.header(':material/clinical_notes: RPM Fit & Transition Queue')
+    st.caption('Synthetic discharge-candidate registry for identifying patients who may benefit from RPM after an acute-care stay. This is portfolio decision support—not a validated clinical score, coverage determination, or autonomous enrollment tool.')
+    st.info('The score identifies and segments candidates; a clinician/care team confirms medical necessity, patient consent, device readiness, safety, and the appropriate care pathway before enrollment.')
+    rows=[]
+    for r in DISCHARGE_CANDIDATES:
+        score=fit_score(r); bucket=fit_bucket(r)
+        rows.append({'Fit':'● '+bucket,'Score':score,'Patient':r['patient'],'MRN':r['mrn'],'Expected discharge':r['discharge'],'Suggested care plan':r['care_plan'],'Why flagged':r['reason']})
+    df=pd.DataFrame(rows)
+    q=st.text_input('Search transition queue',placeholder='Patient, MRN, care plan, discharge timing, reason…')
+    b=st.multiselect('Fit segment',['RPM FIT','REVIEW / ENABLE','NOT CURRENTLY FIT'],default=['RPM FIT','REVIEW / ENABLE','NOT CURRENTLY FIT'])
+    plans=st.multiselect('Care plan',sorted({r['care_plan'] for r in DISCHARGE_CANDIDATES}))
+    if q: df=df[df.astype(str).apply(lambda x:x.str.contains(q,case=False,na=False)).any(axis=1)]
+    if b: df=df[df['Fit'].str.replace('● ','',regex=False).isin(b)]
+    if plans: df=df[df['Suggested care plan'].isin(plans)]
+    order={'● RPM FIT':0,'● REVIEW / ENABLE':1,'● NOT CURRENTLY FIT':2}; df['_order']=df['Fit'].map(order); df=df.sort_values(['_order','Score'],ascending=[True,False]).drop(columns='_order')
+    st.dataframe(df,hide_index=True,use_container_width=True,column_config={'Fit':st.column_config.TextColumn('RPM Fit Segment'),'Score':st.column_config.NumberColumn('Fit Score',format='%d / 13')})
+    st.subheader(':material/rule: Illustrative RPM Fit Score')
+    st.markdown("""**Maximum 13 points.** The model intentionally separates clinical opportunity from practical readiness.  
+**Condition suitable for RPM (0–3):** acute/chronic condition where home monitoring can support management.  
+**Measurable physiologic signal (0–2):** useful home device data such as BP, weight, glucose, SpO2, HR, or spirometry.  
+**Transition/readmission risk (0–2):** recent acute-care discharge or higher need for close follow-up.  
+**Active management need (0–2):** trend review could inform outreach, treatment follow-up, or escalation.  
+**Patient willingness/consent (0–1)** · **ability/caregiver support (0–1)** · **connectivity/device readiness (0–1)** · **RPM team capacity (0–1)**.""")
+    st.markdown("""**Prototype segmentation:** **9–13 = RPM FIT**, **6–8 = REVIEW / ENABLE**, **0–5 = NOT CURRENTLY FIT**. A hard-stop safety condition or lack of patient consent prevents enrollment regardless of numeric score. These cut points are synthetic product-design assumptions and require clinical validation before real use.""")
+    st.subheader(':material/fact_check: Human enrollment gate')
+    st.write('Candidate identified → clinician confirms stability and medical necessity → patient consents → device/digital-readiness check → care plan selected → assigned RPM team capacity confirmed → enroll. Patients needing acute evaluation remain in the appropriate acute-care workflow rather than being routed to RPM.')
+    st.caption('Evidence basis for the concept: CMS recognizes RPM for acute or chronic conditions requiring monitoring; HHS describes heart disease/hypertension, diabetes, pulmonary conditions, post-surgical recovery and cancer care as common use cases and recommends considering patient interest and continued device use; AHRQ highlights the vulnerability of hospital-to-home transitions and digital-literacy support.')
 
 elif menu.startswith('5 ·'):
     st.header('👤 Patient 360 & Trends')
@@ -728,7 +779,7 @@ elif menu.startswith('5 ·'):
         st.dataframe(pd.DataFrame([{'Timestamp':x['timestamp'][:16].replace('T',' '),'Classification':x['ecg'],'Source':x.get('source','Device')} for x in reversed(patient_events(pid)[-7:])]),hide_index=True,use_container_width=True)
         if st.session_state.get('show_ecg_pdf_'+pid,False):
             _epdf=ecg_pdf_bytes(e,e.get('pdf_ok',True)); show_pdf_inline(_epdf); st.download_button('⬇️ Download ECG PDF',_epdf,file_name=f"{e['event_id']}_ecg.pdf",mime='application/pdf',key='dl_ecg_'+pid)
-        st.subheader('🎙️📷 Patient Samples')
+        st.subheader(':material/multimedia: Patient Samples')
         ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
         if ps:
             st.dataframe(pd.DataFrame([{'Sample ID':m['sample_id'],'Date/Time':m['timestamp'][:16].replace('T',' '),'Type':m['type'],'Note':m['note'],'Linked event':m['event_id']} for m in ps]),hide_index=True,use_container_width=True)
@@ -760,7 +811,7 @@ elif menu.startswith('5 ·'):
         st.success('Thresholds active for this synthetic patient.')
         st.caption('In a real clinical product, threshold changes would require role-based authorization, clinical governance and audit logging.')
 elif menu.startswith('7 ·'):
-    st.header('🏡 Care Coordination')
+    st.header(':material/hub: Care Coordination')
     st.caption('Synthetic operational workflow for services that may be needed beyond remote data collection.')
     if 'service_requests' not in st.session_state: st.session_state.service_requests=[]
     pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}",key='svc_patient')
@@ -823,7 +874,7 @@ elif menu.startswith('3 ·'):
             for m in st.session_state.messages:
                 if m['patient_id']==pid and m['sender']=='Patient': m['read']=True
         st.rerun()
-    st.divider(); st.subheader('📹 Video-call simulation')
+    st.divider(); st.subheader(':material/video_call: Video-call simulation')
     if st.button('Start simulated video call'):
         st.session_state.video_calls.append({'patient_id':pid,'clinician':p['clinician'],'timestamp':datetime.now().isoformat(timespec='minutes'),'status':'Connected (simulated)'}); st.success(f"Simulated video session connected between {p['name']} and {p['clinician']}. No real camera/audio is transmitted in this portfolio app.")
     vc=[v for v in st.session_state.video_calls if v['patient_id']==pid]
@@ -894,14 +945,14 @@ elif menu.startswith('14 ·'):
     st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
 
 elif menu.startswith('15 ·'):
-    st.header('🏗️ Architecture & Product Story'); st.info('V3.0 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
+    st.header(':material/account_tree: Architecture & Product Story'); st.info('V3.2 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''PATIENT HOME\n  KardiaMobile 6L + Everion/individual vitals + Dexcom G7 CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Alert → Human review → Call/Chat → Outcome → Audit trail''')
     st.write('**MVP epics:** validated patient registration + MPI duplicate prevention · care-plan enrollment duration/review · care-plan-specific daily + ad-hoc questionnaires · bite-sized patient education completion · patient-generated audio/image samples · home spirometry + PDF · timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
 
 
 elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
-    st.header('🔐 Logins & Roles')
+    st.header(':material/admin_panel_settings: Logins & Roles')
     st.caption('Admin-only portfolio view. Demo passwords are intentionally simple and are not a production authentication pattern.')
     st.info('Production healthcare applications should use enterprise identity/SSO, MFA, server-side authorization, secure secret storage, least-privilege access and auditable access controls.')
     h=st.columns([1.1,1.5,1.8,3.4]); h[0].markdown('**Username**'); h[1].markdown('**Role**'); h[2].markdown('**Password**'); h[3].markdown('**Access / functionality**')
@@ -909,11 +960,11 @@ elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
         c1,c2,c3,c4=st.columns([1.1,1.5,1.8,3.4],vertical_alignment='center'); c1.write(username); c2.write(acct['role']); key='reveal_'+username.replace(' ','_')
         if key not in st.session_state: st.session_state[key]=False
         pc,eye=c3.columns([4,1]); pc.code(acct['password'] if st.session_state[key] else '••••••••••••',language=None)
-        if eye.button('👁',key='eye_'+username,help='Show/hide demo password'): st.session_state[key]=not st.session_state[key]; st.rerun()
+        if eye.button(':material/visibility:',key='eye_'+username,help='Show/hide demo password'): st.session_state[key]=not st.session_state[key]; st.rerun()
         c4.write(acct['description'])
 
 elif menu.startswith('11 ·'):
-    st.header('🧬 Patient Identity & Duplicate Prevention')
+    st.header(':material/badge: Patient Identity & Duplicate Prevention')
     st.write('Both the Clinical Dashboard and Mock EHR creation buttons call the same shared Master Patient Index (MPI) service in this prototype. That means there is one patient registry, not two independent patient lists.')
     st.subheader('Demo matching logic')
     st.markdown('''**1. Exact/high-confidence match:** normalized legal name + date of birth + phone → creation is blocked and the existing MRN is returned.  
