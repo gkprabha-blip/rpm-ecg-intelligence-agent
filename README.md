@@ -67,12 +67,16 @@ streamlit run app.py
 - Adds a clearer demo-password visibility header and a subtle visibility control.
 - Preserves V4.2 unified patient/research architecture and V5.0 workflows.
 
-## V6.1 — Connected Care Intelligence Platform UX redesign
-V6.1 rebuilds the application shell around the approved hybrid UX direction: enterprise clinical command center + contextual patient journey + focused intelligence. It preserves the V4.2/V5.1 unified synthetic patient/research architecture while introducing a compact navy navigation rail, global search surface, stage-aware page headers, denser enterprise workspace layout, command-center workspace tabs, refined cards/tables, and clearer role context. Lifecycle labels are shown where the work occurs (Identify, Enroll, Prepare, Activate, Monitor, Intervene, Learn) rather than repeating the entire journey ribbon on every page.
+## V6.2 — Connected Care Intelligence Platform UX redesign
+V6.2 rebuilds the application shell around the approved hybrid UX direction: enterprise clinical command center + contextual patient journey + focused intelligence. It preserves the V4.2/V5.1 unified synthetic patient/research architecture while introducing a compact navy navigation rail, global search surface, stage-aware page headers, denser enterprise workspace layout, command-center workspace tabs, refined cards/tables, and clearer role context. Lifecycle labels are shown where the work occurs (Identify, Enroll, Prepare, Activate, Monitor, Intervene, Learn) rather than repeating the entire journey ribbon on every page.
 
 
-## V6.1 UX refinement
+## V6.2 UX refinement
 - Larger, left-aligned page and section headings.
 - Wider, more readable navigation with larger section labels and menu typography.
 - RPM Fit queue redesigned as candidate cards with the complete Why Flagged rationale visible without double-clicking.
 - Stronger visual hierarchy while preserving the V4.2 unified data architecture and V6 workflow shell.
+
+
+## V6.2 UX architecture
+V6.2 replaces the always-expanded sidebar with task-first workspaces. Only the selected workspace reveals its pages, reducing navigation overload while preserving role-based access. It also increases sidebar, page-title, section-heading, tab, and explanatory-text hierarchy and keeps RPM Fit rationales visible in full candidate cards. The information architecture follows established enterprise shell and side-navigation principles: shallow hierarchy, clear current location, task-oriented grouping, progressive disclosure, and accessible text states in addition to color.
