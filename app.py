@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v3.4', page_icon=':material/monitor_heart:', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v3.4', page_icon='RPM', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -273,10 +273,10 @@ def trend_df(pid):
     return pd.DataFrame([{'Date':pd.to_datetime(e['timestamp']).strftime('%b %d'),'SpO₂ (%)':e['spo2'],'Heart Rate (bpm)':e['ecg_hr'],'Weight (lb)':e['weight']} for e in es])
 
 def battery_icon(level):
-    return ('🟢' if level>=60 else '🟡' if level>=30 else '🔴') + f" {level}%"
+    return ('Good' if level>=60 else 'Low' if level>=30 else 'Critical') + f" · {level}%"
 
 def device_table(pid):
-    return pd.DataFrame([{'Device':d['device'],'Measurement / mode':d.get('type',''),'Connected':'🟢 Connected' if d['connected'] else '🔴 Disconnected','Battery':battery_icon(d['battery']),'Internet':'📶 Online' if d['wifi'] else '🚫 Offline'} for d in st.session_state.devices[pid]])
+    return pd.DataFrame([{'Device':d['device'],'Measurement / mode':d.get('type',''),'Connected':'Connected' if d['connected'] else 'Disconnected','Battery':battery_icon(d['battery']),'Internet':'Online' if d['wifi'] else 'Offline'} for d in st.session_state.devices[pid]])
 
 def _trend_icon(field):
     icons={
@@ -285,7 +285,8 @@ def _trend_icon(field):
       'weight':'<svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14l2 13H3L5 7Z" stroke="currentColor" stroke-width="2"/><path d="M9 7a3 3 0 0 1 6 0" stroke="currentColor" stroke-width="2"/></svg>',
       'rr':'<svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M12 12c-2-4-7-5-8-1-1 5 3 8 8 8M12 12c2-4 7-5 8-1 1 5-3 8-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
       'skin_temp':'<svg viewBox="0 0 24 24" fill="none"><path d="M10 5a2 2 0 1 1 4 0v8.2a4 4 0 1 1-4 0V5Z" stroke="currentColor" stroke-width="2"/><path d="M12 9v7" stroke="currentColor" stroke-width="2"/></svg>',
-      'glucose':'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3s6 7 6 11a6 6 0 1 1-12 0c0-4 6-11 6-11Z" stroke="currentColor" stroke-width="2"/></svg>'}
+      'glucose':'<svg viewBox="0 0 24 24" fill="none"><path d="M12 3s6 7 6 11a6 6 0 1 1-12 0c0-4 6-11 6-11Z" stroke="currentColor" stroke-width="2"/></svg>',
+      'ecg':'<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="3" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 12h3l1.5-4 3 8 2-5 1.5 2H19" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
     return icons.get(field,icons['spo2'])
 
 def trend_chart(pid, field, title, unit, min_key=None, max_key=None, display_unit=None, compact_unit_selector=False):
@@ -564,7 +565,7 @@ if st.sidebar.button('Sign out',use_container_width=True): st.session_state.auth
 menu=st.session_state.selected_menu
 
 if menu.startswith('1 ·'):
-    st.header(':material/home_health: Today / Care Plan')
+    st.header('Today / Care Plan')
     st.caption('Patient-facing daily worklist: what is due, what is complete, device readiness, and how to contact the care team.')
     pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['care_plan']}",key='today_patient')
     p=PATIENTS[pid]; es=patient_events(pid); latest=es[-1] if es else None
@@ -581,7 +582,7 @@ if menu.startswith('1 ·'):
     st.info('Use **Patient Home & Daily Check-In** to simulate today’s measurements, questionnaire, ECG, or requested patient sample. Use **Communication Center** for chat/video simulation.')
 
 elif menu.startswith('2 ·'):
-    st.header(':material/monitor_heart: Patient Home & Daily Check-In')
+    st.header('Patient Home & Daily Check-In')
     st.info('PATIENT-HOME SIMULATOR — This page simulates a patient tablet/app receiving connected-device readings and the patient completing today’s care-plan questionnaire. Clinician-assisted entry is available for missed submissions.')
     pid=patient_picker('Synthetic patient','home_patient')
     p=PATIENTS[pid]; prior=latest_for(pid); mode=st.radio('Submission source',['Patient tablet + connected devices','Clinician-assisted entry after phone/chat outreach'],horizontal=True)
@@ -609,21 +610,21 @@ elif menu.startswith('2 ·'):
         pri,reasons,_=assess(e); st.success(f'{eid} saved as a NEW timestamped RPM event. Existing history was preserved. Source: {source}.'); a,b,c=st.columns(3); a.metric('Priority',pri); b.metric('SpO₂',f"{spo2}%"); c.metric('Heart rate',f"{hr} bpm")
         if reasons: st.warning('Alert reasons: '+' | '.join(reasons))
 
-    st.subheader(f":material/checklist: {p['care_plan']} Daily Questionnaire")
+    st.subheader(f"{p['care_plan']} Daily Questionnaire")
     answers={}
     for key,q in questionnaire_for(p['care_plan']): answers[key]=st.radio(q,['No','Yes'],horizontal=True,key=f'q_{pid}_{key}',index=1 if key=='meds' else 0)
-    if st.button(':material/save: Save Daily Questionnaire',key='save_q_'+pid):
+    if st.button('Save Daily Questionnaire',key='save_q_'+pid):
         target=latest_for(pid)
         if target:
             target['questionnaire']=answers; target['sob']=answers.get('sob')=='Yes'; target['chest']=answers.get('chest')=='Yes'; target['dizzy']=answers.get('dizzy')=='Yes'; target['meds']=answers.get('meds')=='Yes'; log(target['event_id'],'Daily questionnaire submitted'); st.success('Daily questionnaire saved to the latest patient event.')
         else: st.warning('Save today’s readings first, then save the questionnaire.')
 
-    st.subheader(':material/photo_library: Patient Samples')
+    st.subheader('Patient Samples')
     st.caption('Optional patient-generated media. Samples use their own save action and are routed to the clinical review queue.')
     audio_sample=st.audio_input('Record cough / breathing audio (optional)')
     image_sample=st.camera_input('Take a patient photo / symptom image (optional)')
     sample_note=st.text_input('Sample note (optional)',placeholder='Example: cough sample after morning questionnaire')
-    if st.button(':material/check_circle: Save Patient Sample',key='save_sample_'+pid):
+    if st.button('Save Patient Sample',key='save_sample_'+pid):
         saved=0; target=latest_for(pid); link_event=target['event_id'] if target else 'NO-EVENT'
         for media_obj,media_type,ext in [(audio_sample,'Cough / breathing audio','wav'),(image_sample,'Patient image','jpg')]:
             if media_obj is not None:
@@ -732,7 +733,7 @@ elif menu.startswith('4 ·'):
     if clinical_samples:
         pending=[m for m in clinical_samples if not m.get('reviewed',False)]
         if pending: st.error(f"🎙️📷 {len(pending)} NEW patient sample(s) require clinical review.")
-        st.subheader(':material/photo_library: Patient Samples — Clinical Review')
+        st.subheader('Patient Samples — Clinical Review')
         for m in reversed(clinical_samples):
             status='NEW — review required' if not m.get('reviewed',False) else 'Reviewed'
             st.write(f"**{m['sample_id']} · {m['type']} · {status}**  |  {m['timestamp'][:16].replace('T',' ')}  |  {m['note'] or 'No note'}")
@@ -761,7 +762,7 @@ elif menu.startswith('4A ·'):
             st.session_state.questionnaire_assignments.append({'assignment_id':f'Q-{len(st.session_state.questionnaire_assignments)+1:03d}','patient_id':pid,'plan':plan,'assigned_by':PATIENTS[pid]['clinician'],'assigned_at':datetime.now().isoformat(),'completed':False}); st.success('Ad-hoc questionnaire sent to patient.')
 
 elif menu.startswith('4B ·'):
-    st.header(':material/clinical_notes: RPM Fit, Enrollment & Kit Transition')
+    st.header('RPM Fit, Enrollment & Kit Transition')
     st.caption('Synthetic discharge-candidate workflow: identify potential RPM fit, complete human enrollment review, configure only the devices required by the selected care path, fulfill the kit, and activate monitoring.')
     st.info('A high Fit Score never auto-enrolls a patient. Clinical stability, medical necessity, consent, device/digital readiness and human confirmation remain required.')
     rows=[]
@@ -772,7 +773,7 @@ elif menu.startswith('4B ·'):
     if q: df=df[df.astype(str).apply(lambda x:x.str.contains(q,case=False,na=False)).any(axis=1)]
     order={'● RPM FIT':0,'● REVIEW / ENABLE':1,'● NOT CURRENTLY FIT':2}; df['_order']=df['Fit'].map(order); df=df.sort_values(['_order','Score'],ascending=[True,False]).drop(columns='_order')
     st.dataframe(df,hide_index=True,use_container_width=True,column_config={'Fit':st.column_config.TextColumn('RPM Fit Segment'),'Score':st.column_config.NumberColumn('Fit Score',format='%d / 13')})
-    st.subheader(':material/local_shipping: Enrollment, kit fulfillment & activation')
+    st.subheader('Enrollment, kit fulfillment & activation')
     chosen=st.selectbox('Transition candidate',range(len(DISCHARGE_CANDIDATES)),format_func=lambda i:f"{DISCHARGE_CANDIDATES[i]['patient']} · {DISCHARGE_CANDIDATES[i]['mrn']} · {DISCHARGE_CANDIDATES[i]['care_plan']}")
     r=DISCHARGE_CANDIDATES[chosen]; wf=transition_state(r['mrn']); score=fit_score(r); bucket=fit_bucket(r)
     a,b,c,d=st.columns(4); a.metric('Fit segment',bucket); b.metric('Fit score',f'{score}/13'); c.metric('Discharge',r['discharge']); d.metric('Enrollment',wf['enrollment_status'])
@@ -789,15 +790,15 @@ elif menu.startswith('4B ·'):
     wf['activation_status']=st.selectbox('Activation status',activation_options,index=activation_options.index(wf['activation_status']) if wf['activation_status'] in activation_options else 0,key='activation_'+r['mrn'])
     c1,c2=st.columns(2)
     with c1:
-        if st.button(':material/local_shipping: Save kit / fulfillment',type='primary',use_container_width=True):
+        if st.button('Save kit / fulfillment',type='primary',use_container_width=True):
             st.session_state.kit_orders.append({'mrn':r['mrn'],'patient':r['patient'],'care_plan':r['care_plan'],'devices':devices,'method':method,'kit_status':wf['kit_status'],'time':datetime.now().isoformat()}); st.success('Kit configuration and fulfillment status saved to the transition workflow.')
     with c2:
-        if st.button(':material/person_add: Enroll in RPM & add to My Patients',use_container_width=True,disabled=(bucket=='NOT CURRENTLY FIT' or wf['enrollment_status'] not in ['Ready to enroll','Enrolled'])):
+        if st.button('Enroll in RPM & add to My Patients',use_container_width=True,disabled=(bucket=='NOT CURRENTLY FIT' or wf['enrollment_status'] not in ['Ready to enroll','Enrolled'])):
             pid=enroll_candidate(r); st.success(f"{r['patient']} is now in the shared RPM patient registry as {PATIENTS[pid]['mrn']}. Patient 360 will show the patient immediately; trends begin after the first device reading.")
     if wf.get('patient_id'): st.success(f"Active RPM registry link: {PATIENTS[wf['patient_id']]['name']} · {PATIENTS[wf['patient_id']]['mrn']} · {PATIENTS[wf['patient_id']]['care_plan']}")
     st.markdown('#### Operational journey')
     st.write('Candidate → Under review → Consent obtained → Ready to enroll → Enrolled → Kit configured → Shipped / Given at discharge → Patient received kit → Devices paired → Training completed → Test reading received → Active monitoring')
-    st.subheader(':material/rule: Illustrative RPM Fit Score')
+    st.subheader('Illustrative RPM Fit Score')
     st.markdown('**Maximum 13 points.** Condition fit (0–3) + measurable physiologic signal (0–2) + transition/readmission need (0–2) + active management need (0–2) + willingness/consent (0–1) + ability/caregiver support (0–1) + connectivity/device readiness (0–1) + RPM team capacity (0–1).')
     st.caption('Prototype segmentation: 9–13 RPM FIT; 6–8 REVIEW / ENABLE; 0–5 NOT CURRENTLY FIT. Synthetic design assumptions; validation and governance are required before production use.')
 
@@ -823,7 +824,7 @@ elif menu.startswith('5 ·'):
         trend_chart(pid,'glucose','Glucose (CGM) Trend','mg/dL','glucose_min','glucose_max')
         if p['care_plan'] in SPIROMETRY_PLANS:
           with st.container(border=True):
-            sh,sb=st.columns([5,1],vertical_alignment='center'); sh.markdown('<div class="trend-head">:material/air:<span>Spirometry Trend</span></div>',unsafe_allow_html=True)
+            sh,sb=st.columns([5,1],vertical_alignment='center'); sh.markdown(f'<div class="trend-head">{_trend_icon("rr")}<span>Spirometry Trend</span></div>',unsafe_allow_html=True)
             _sp=[x for x in patient_events(pid) if x.get('fev1') is not None]
             if _sp:
                 _df=pd.DataFrame([{'Date/Time':x['timestamp'][:16].replace('T',' '),'FEV1 (L)':round(x['fev1'],2),'FVC (L)':round(x['fvc'],2),'FEV1/FVC':round(x['fev1']/x['fvc'],2),'PEF (L/min)':round(x['pef'],0),'FEV1 % personal baseline':round(x['fev1_pct_baseline'],0)} for x in reversed(_sp)])
@@ -833,13 +834,13 @@ elif menu.startswith('5 ·'):
                 sp_sel=st.selectbox('Select a spirometry result',sp_ids,format_func=lambda eid: next(x['timestamp'][:16].replace('T',' ')+' · '+eid for x in _sp if x['event_id']==eid),key='sp_hist_'+pid)
                 latest_sp=next(x for x in _sp if x['event_id']==sp_sel)
                 v1,v2=st.columns([1,1])
-                if v1.button(':material/visibility: View selected result',key='spiro_pdf_'+pid,use_container_width=True): st.session_state['show_spiro_pdf_'+pid]=not st.session_state.get('show_spiro_pdf_'+pid,False)
+                if v1.button('View selected result',key='spiro_pdf_'+pid,use_container_width=True): st.session_state['show_spiro_pdf_'+pid]=not st.session_state.get('show_spiro_pdf_'+pid,False)
                 _pdf=spirometry_pdf_bytes(latest_sp)
-                v2.download_button(':material/download: Download PDF',_pdf,file_name=f"{latest_sp['event_id']}_spirometry.pdf",mime='application/pdf',key='dl_spiro_'+pid,use_container_width=True)
+                v2.download_button('Download PDF',_pdf,file_name=f"{latest_sp['event_id']}_spirometry.pdf",mime='application/pdf',key='dl_spiro_'+pid,use_container_width=True)
                 if st.session_state.get('show_spiro_pdf_'+pid,False): show_pdf_inline(_pdf)
                 st.caption('Synthetic home-spirometry values. The alert engine compares FEV1 with the patient’s synthetic personal baseline; this is a portfolio rule, not a diagnostic criterion.')
         with st.container(border=True):
-          st.markdown('<div class="trend-head">:material/ecg:<span>ECG Trend & Result History</span></div>',unsafe_allow_html=True)
+          st.markdown(f'<div class="trend-head">{_trend_icon("ecg")}<span>ECG Trend & Result History</span></div>',unsafe_allow_html=True)
           _ecgs=list(reversed(patient_events(pid)))
           _edf=pd.DataFrame([{'Date/Time':x['timestamp'][:16].replace('T',' '),'Heart Rate':x['ecg_hr'],'Device Classification':x['ecg'],'Source':x.get('source','Device'),'Document':'Available' if x.get('pdf_ok',True) else 'Held'} for x in _ecgs])
           if not _edf.empty:
@@ -850,11 +851,11 @@ elif menu.startswith('5 ·'):
               ecg_sel=st.selectbox('Select an ECG result',ecg_ids,format_func=lambda eid: next(x['timestamp'][:16].replace('T',' ')+' · '+x['ecg']+' · '+eid for x in _ecgs if x['event_id']==eid),key='ecg_hist_'+pid)
               selected_ecg=next(x for x in _ecgs if x['event_id']==ecg_sel)
               e1,e2=st.columns([1,1])
-              if e1.button(':material/visibility: View selected result',key='ecg_pdf_trend_'+pid,use_container_width=True): st.session_state['show_ecg_pdf_'+pid]=not st.session_state.get('show_ecg_pdf_'+pid,False)
+              if e1.button('View selected result',key='ecg_pdf_trend_'+pid,use_container_width=True): st.session_state['show_ecg_pdf_'+pid]=not st.session_state.get('show_ecg_pdf_'+pid,False)
               _epdf=ecg_pdf_bytes(selected_ecg,selected_ecg.get('pdf_ok',True))
-              e2.download_button(':material/download: Download PDF',_epdf,file_name=f"{selected_ecg['event_id']}_ecg.pdf",mime='application/pdf',key='dl_ecg_'+pid,use_container_width=True)
+              e2.download_button('Download PDF',_epdf,file_name=f"{selected_ecg['event_id']}_ecg.pdf",mime='application/pdf',key='dl_ecg_'+pid,use_container_width=True)
               if st.session_state.get('show_ecg_pdf_'+pid,False): show_pdf_inline(_epdf)
-        st.subheader(':material/photo_library: Patient Samples')
+        st.subheader('Patient Samples')
         ps=[m for m in st.session_state.patient_samples if m['patient_id']==pid]
         if ps:
             st.dataframe(pd.DataFrame([{'Sample ID':m['sample_id'],'Date/Time':m['timestamp'][:16].replace('T',' '),'Type':m['type'],'Note':m['note'],'Linked event':m['event_id']} for m in ps]),hide_index=True,use_container_width=True)
@@ -886,7 +887,7 @@ elif menu.startswith('5 ·'):
         st.success('Thresholds active for this synthetic patient.')
         st.caption('In a real clinical product, threshold changes would require role-based authorization, clinical governance and audit logging.')
 elif menu.startswith('7 ·'):
-    st.header(':material/hub: Care Coordination')
+    st.header('Care Coordination')
     st.caption('Synthetic operational workflow for services that may be needed beyond remote data collection.')
     if 'service_requests' not in st.session_state: st.session_state.service_requests=[]
     pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}",key='svc_patient')
@@ -904,7 +905,7 @@ elif menu.startswith('8 ·'):
     st.header('ECG & Spirometry Documents'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); es=patient_events(pid)
     for e in reversed(es[-4:]):
         with st.expander(f"{e['event_id']} · {e['timestamp'][:16].replace('T',' ')} · {e['ecg']}",expanded=(e==es[-1])):
-            st.download_button(':material/download: Download ECG PDF',ecg_pdf_bytes(e,e['pdf_ok']),file_name=f"{e['event_id']}_{PATIENTS[pid]['mrn']}.pdf",mime='application/pdf',key='pdf'+e['event_id'],type='primary')
+            st.download_button('Download ECG PDF',ecg_pdf_bytes(e,e['pdf_ok']),file_name=f"{e['event_id']}_{PATIENTS[pid]['mrn']}.pdf",mime='application/pdf',key='pdf'+e['event_id'],type='primary')
             checks={'Patient name on every page':True,'MRN on every page':e['pdf_ok'],'DOB on every page':True,'ECG timestamp':True,'Patient association':True}; st.dataframe(pd.DataFrame([{'Check':k,'Result':'PASS' if v else 'FAIL'} for k,v in checks.items()]),hide_index=True,use_container_width=True)
             st.success('DOCUMENT VALIDATION PASSED — eligible for downstream transmission.') if e['pdf_ok'] else st.error('DOCUMENT VALIDATION FAILED — held; mock EHR Media filing blocked.')
 
@@ -949,7 +950,7 @@ elif menu.startswith('3 ·'):
             for m in st.session_state.messages:
                 if m['patient_id']==pid and m['sender']=='Patient': m['read']=True
         st.rerun()
-    st.divider(); st.subheader(':material/video_call: Video-call simulation')
+    st.divider(); st.subheader('Video-call simulation')
     if st.button('Start simulated video call'):
         st.session_state.video_calls.append({'patient_id':pid,'clinician':p['clinician'],'timestamp':datetime.now().isoformat(timespec='minutes'),'status':'Connected (simulated)'}); st.success(f"Simulated video session connected between {p['name']} and {p['clinician']}. No real camera/audio is transmitted in this portfolio app.")
     vc=[v for v in st.session_state.video_calls if v['patient_id']==pid]
@@ -975,8 +976,8 @@ elif menu.startswith('10 ·'):
         for m in ps:
             st.write(f"🎙️📷 {m['sample_id']} · {m['type']} · {m['timestamp'][:16].replace('T',' ')} · {m['note']}")
             st.download_button(f"Open / download {m['sample_id']}",m['bytes'],file_name=m['filename'],mime=m['mime'],key='media'+m['sample_id'])
-        for e in [x for x in es if x['pdf_ok']]: st.write(f"{e['event_id']}.pdf · Remote ECG · Source: RPM Vendor · Status: FILED"); st.download_button(':material/download: Download ECG PDF',ecg_pdf_bytes(e,True),file_name=f"{e['event_id']}.pdf",mime='application/pdf',key='ehr'+e['event_id'])
-        for e in [x for x in es if x.get('fev1') is not None]: st.write(f"{e['event_id']}_spirometry.pdf · Home Spirometry · Status: FILED"); st.download_button(':material/download: Download Spirometry PDF',spirometry_pdf_bytes(e),file_name=f"{e['event_id']}_spirometry.pdf",mime='application/pdf',key='ehrsp'+e['event_id'])
+        for e in [x for x in es if x['pdf_ok']]: st.write(f"{e['event_id']}.pdf · Remote ECG · Source: RPM Vendor · Status: FILED"); st.download_button('Download ECG PDF',ecg_pdf_bytes(e,True),file_name=f"{e['event_id']}.pdf",mime='application/pdf',key='ehr'+e['event_id'])
+        for e in [x for x in es if x.get('fev1') is not None]: st.write(f"{e['event_id']}_spirometry.pdf · Home Spirometry · Status: FILED"); st.download_button('Download Spirometry PDF',spirometry_pdf_bytes(e),file_name=f"{e['event_id']}_spirometry.pdf",mime='application/pdf',key='ehrsp'+e['event_id'])
         for e in [x for x in es if not x['pdf_ok']]: st.error(f"{e['event_id']} — identifier validation failed; not filed to mock EHR Media.")
     with t3:
         ints=[x for x in st.session_state.interventions if x['patient_id']==pid]; st.dataframe(pd.DataFrame(ints),hide_index=True,use_container_width=True) if ints else st.caption('No documented communication.')
@@ -1020,7 +1021,7 @@ elif menu.startswith('14 ·'):
     st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
 
 elif menu.startswith('15 ·'):
-    st.header(':material/account_tree: Architecture & Product Story'); st.info('V3.4 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
+    st.header('Architecture & Product Story'); st.info('V3.4 (corrected icon build) is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
   RPM Fit Screening → Human Eligibility Review → Consent / Care Path Selection
                     │
                     ▼
@@ -1036,7 +1037,7 @@ elif menu.startswith('15 ·'):
 
 
 elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
-    st.header(':material/admin_panel_settings: Logins & Roles')
+    st.header('Logins & Roles')
     st.caption('Admin-only portfolio view. Demo passwords are intentionally simple and are not a production authentication pattern.')
     st.info('Production healthcare applications should use enterprise identity/SSO, MFA, server-side authorization, secure secret storage, least-privilege access and auditable access controls.')
     h=st.columns([1.1,1.5,1.8,3.4]); h[0].markdown('**Username**'); h[1].markdown('**Role**'); h[2].markdown('**Password**'); h[3].markdown('**Access / functionality**')
@@ -1044,11 +1045,11 @@ elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
         c1,c2,c3,c4=st.columns([1.1,1.5,1.8,3.4],vertical_alignment='center'); c1.write(username); c2.write(acct['role']); key='reveal_'+username.replace(' ','_')
         if key not in st.session_state: st.session_state[key]=False
         pc,eye=c3.columns([4,1]); pc.code(acct['password'] if st.session_state[key] else '••••••••••••',language=None)
-        if eye.button(':material/visibility:',key='eye_'+username,help='Show/hide demo password'): st.session_state[key]=not st.session_state[key]; st.rerun()
+        if eye.button('',key='eye_'+username,help='Show/hide demo password'): st.session_state[key]=not st.session_state[key]; st.rerun()
         c4.write(acct['description'])
 
 elif menu.startswith('11 ·'):
-    st.header(':material/badge: Patient Identity & Duplicate Prevention')
+    st.header('Patient Identity & Duplicate Prevention')
     st.write('Both the Clinical Dashboard and Mock EHR creation buttons call the same shared Master Patient Index (MPI) service in this prototype. That means there is one patient registry, not two independent patient lists.')
     st.subheader('Demo matching logic')
     st.markdown('''**1. Exact/high-confidence match:** normalized legal name + date of birth + phone → creation is blocked and the existing MRN is returned.  
