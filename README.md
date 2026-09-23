@@ -66,3 +66,6 @@ streamlit run app.py
 - RPM Fit & Transition explicitly highlights Identify → Enroll → Prepare → Activate.
 - Adds a clearer demo-password visibility header and a subtle visibility control.
 - Preserves V4.2 unified patient/research architecture and V5.0 workflows.
+
+## V6.0 — Connected Care Intelligence Platform UX redesign
+V6.0 rebuilds the application shell around the approved hybrid UX direction: enterprise clinical command center + contextual patient journey + focused intelligence. It preserves the V4.2/V5.1 unified synthetic patient/research architecture while introducing a compact navy navigation rail, global search surface, stage-aware page headers, denser enterprise workspace layout, command-center workspace tabs, refined cards/tables, and clearer role context. Lifecycle labels are shown where the work occurs (Identify, Enroll, Prepare, Activate, Monitor, Intervene, Learn) rather than repeating the entire journey ribbon on every page.
