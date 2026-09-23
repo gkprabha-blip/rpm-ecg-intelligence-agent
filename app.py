@@ -619,9 +619,30 @@ h3{font-size:1.28rem!important;line-height:1.22!important;font-weight:780!import
 .rpm-fit-card-top{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:.55rem}.rpm-fit-name{font-size:1.08rem;font-weight:800;color:#102A43}.rpm-fit-meta{font-size:.82rem;color:#64748B;margin-top:.12rem}.rpm-fit-reason{font-size:.93rem;line-height:1.48;color:#334155;background:#F8FAFC;border-radius:9px;padding:.65rem .75rem;margin-top:.55rem}.fit-pill{display:inline-block;border-radius:999px;padding:.28rem .58rem;font-size:.76rem;font-weight:850;white-space:nowrap}.fit-green{background:#E8F7EE;color:#176B3A}.fit-amber{background:#FFF6DB;color:#8A5A00}.fit-slate{background:#EEF2F6;color:#475467}.fit-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.45rem;margin-top:.55rem}.fit-kv{font-size:.78rem;color:#64748B}.fit-kv b{display:block;color:#172B3A;font-size:.86rem;margin-top:.08rem}
 @media(max-width:1100px){.fit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+/* V6.3 — full-information modern navigation shell, based on V6.1 */
+[data-testid="stSidebar"]{min-width:320px!important;max-width:320px!important;width:320px!important;background:#F8FAFC!important;border-right:1px solid #DCE5EC!important}
+[data-testid="stSidebar"] *{color:#24364B}
+[data-testid="stSidebar"] [data-testid="stSidebarContent"]{padding:.75rem .8rem 1.1rem!important}
+.side-brand{background:#0B2948!important;border:0!important;border-radius:14px!important;padding:.9rem .9rem!important;margin:.1rem .05rem .9rem!important;box-shadow:0 5px 18px rgba(15,39,68,.12)}
+.side-brand b{font-size:1.03rem!important;color:#FFFFFF!important;letter-spacing:-.015em}.side-brand small{font-size:.73rem!important;color:#B9D0E1!important;margin-top:.2rem!important}
+.nav-section{display:flex;align-items:center;gap:.58rem;margin:1.15rem .22rem .35rem;padding:.1rem .25rem}.nav-section-icon{width:30px;height:30px;border-radius:9px;background:#E7F5F5;display:flex;align-items:center;justify-content:center;flex:0 0 auto}.nav-section-icon svg{width:17px;height:17px;stroke:#087F8C;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.nav-section-title{font-size:.82rem;font-weight:850;letter-spacing:.075em;text-transform:uppercase;color:#536A7D}.nav-section-rule{height:1px;background:#E4EBF0;flex:1}
+[data-testid="stSidebar"] h3{display:none!important}
+[data-testid="stSidebar"] .stButton{margin:.08rem 0!important;padding:0!important}
+[data-testid="stSidebar"] .stButton>button{background:transparent!important;border:0!important;border-radius:9px!important;padding:.62rem .72rem .62rem 1rem!important;min-height:2.55rem!important;color:#31465A!important;box-shadow:none!important;font-size:.94rem!important;font-weight:650!important;transition:background .12s ease, color .12s ease, transform .12s ease!important}
+[data-testid="stSidebar"] .stButton>button p{font-size:.94rem!important;font-weight:650!important;line-height:1.2!important;color:inherit!important;white-space:normal!important}
+[data-testid="stSidebar"] .stButton>button:hover{background:#EDF4F8!important;color:#0B2948!important;transform:translateX(2px)}
+[data-testid="stSidebar"] button[kind="primary"]{background:#E6F2FF!important;color:#0B4E91!important;box-shadow:inset 4px 0 0 #087F8C!important;font-weight:800!important}
+[data-testid="stSidebar"] button[kind="primary"] p{font-weight:800!important;color:#0B4E91!important}
+[data-testid="stSidebar"] hr{border-color:#DCE5EC!important;margin:.9rem .25rem!important}
+.role-chip{display:block;background:#EEF4F7;border:1px solid #D9E5EC;border-radius:10px;padding:.65rem .75rem;color:#536A7D!important;font-size:.78rem!important;line-height:1.5!important}
+.nav-hint{font-size:.73rem;color:#7A8D9C;margin:.1rem .35rem .55rem;line-height:1.4}.nav-hint b{color:#3D5367}
+/* Keep the full app canvas airy while retaining all capabilities */
+.block-container{padding-left:2rem!important;padding-right:2rem!important;max-width:1720px!important}
+.hero{padding:1.05rem 1.2rem!important}.hero h1{font-size:2rem!important}.hero p{font-size:1rem!important}.section-eyebrow{font-size:.8rem!important}
+h2{font-size:1.7rem!important}h3{font-size:1.34rem!important}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.1</small></span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.3</small></span></div>''', unsafe_allow_html=True)
     st.subheader('Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -632,7 +653,7 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.1</small></span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.3</small></span></div>''', unsafe_allow_html=True)
 st.markdown(f'''<div class="top-context"><span class="crumb">Connected Care Intelligence</span><span class="top-user">{CURRENT_USER} · {CURRENT_ROLE}</span></div>''', unsafe_allow_html=True)
 _top_search=st.text_input('Global search',placeholder='Search patients, MRN, care path, alerts, cohorts or keywords…',label_visibility='collapsed',key='global_shell_search')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
@@ -723,13 +744,31 @@ if 'selected_menu' not in st.session_state:
     st.session_state.selected_menu=patient_menu[0]
 
 st.sidebar.markdown('''<div class="side-brand"><span class="side-mark"><svg viewBox="0 0 32 32" width="24" height="24"><rect width="32" height="32" rx="9" fill="#DFF8F5"/><path d="M5 17h5l2-6 4 12 3-8 2 4h6" fill="none" stroke="#087F8C" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>RPM Connected Care</b><small>Intelligence Platform</small></span></div>''',unsafe_allow_html=True)
+st.sidebar.markdown('<div class="nav-hint"><b>Navigate the full platform</b><br>Capabilities stay visible and grouped by workflow.</div>',unsafe_allow_html=True)
 
+NAV_ICONS={
+ 'PATIENT EXPERIENCE':'<svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 11c0 5.4-7 10-7 10Z"/><path d="M9 12h2l1-2 2 4 1-2h2"/></svg>',
+ 'CONNECTED CARE':'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 12h3l2-4 3 8 2-4h2"/></svg>',
+ 'PLATFORM & INTEGRATION':'<svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.3 10.9 15.7 7.1M8.3 13.1l7.4 3.8"/></svg>',
+ 'AI & CONFIGURATION':'<svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg>',
+ 'RESEARCH ANALYTICS':'<svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 15h9"/></svg>'
+}
+NAV_SHORT={
+ 'Clinical Command Center & Action Queue':'Command Center',
+ 'Patient Home & Daily Check-In':'Daily Check-In',
+ 'RPM Fit & Transition Queue':'RPM Fit & Transition',
+ 'Patient 360 & Trends':'Patient 360',
+ 'Patient Identity & Duplicate Prevention':'Identity & MPI',
+ 'Research Analytics Overview':'Research Overview',
+ 'Architecture & Product':'Architecture & Product Story',
+}
 def nav_group(title, items):
-    st.sidebar.markdown(f'### {title}')
+    icon=NAV_ICONS.get(title,'')
+    st.sidebar.markdown(f'<div class="nav-section"><span class="nav-section-icon">{icon}</span><span class="nav-section-title">{title}</span><span class="nav-section-rule"></span></div>',unsafe_allow_html=True)
     for item in items:
         active=st.session_state.selected_menu==item
-        clean_label=item.split(' · ',1)[1] if ' · ' in item else item
-        label=clean_label
+        clean=item.split(' · ',1)[1] if ' · ' in item else item
+        label=NAV_SHORT.get(clean,clean)
         if st.sidebar.button(label,key='nav_'+item,use_container_width=True,type='primary' if active else 'secondary'):
             st.session_state.selected_menu=item
             st.rerun()
