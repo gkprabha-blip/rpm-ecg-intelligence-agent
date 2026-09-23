@@ -522,7 +522,7 @@ div[data-testid="stSelectbox"] label p{font-size:.78rem!important;font-weight:65
 .role-chip{font-size:.88rem;font-weight:600}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.0</span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.1</span></div>''', unsafe_allow_html=True)
     st.subheader('🔐 Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -533,17 +533,31 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.0</span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.1</span></div>''', unsafe_allow_html=True)
 st.caption(f'Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data • Signed in as {CURRENT_USER} ({CURRENT_ROLE})')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 
 @st.cache_data(show_spinner=False)
 def build_research_data(n_participants=240, days=90):
     rng=random.Random(4060)
-    plans=['Lung Transplant','COPD / Pulmonary','Pulmonary Home Rehab','Pneumonitis','Cardiology','Heart Failure','Coronary Artery Disease (CAD)']
+    cohort_map={
+        'Lung Transplant':'Lung Transplant Home Spirometry',
+        'COPD / Pulmonary':'COPD Remote Pulmonary Monitoring',
+        'Pulmonary Home Rehab':'Pulmonary Home Rehabilitation',
+        'Pneumonitis':'Pneumonitis Recovery Monitoring',
+        'Adult Respiratory Infection':'Post-Respiratory Infection Recovery',
+        'Cardiology':'Cardiac Rhythm / 6L ECG',
+        'Heart Failure':'Heart Failure Post-Discharge',
+        'Coronary Artery Disease (CAD)':'CAD / Cardiac Recovery',
+        'Hypertension':'Hypertension Monitoring',
+        'Diabetes / CGM':'Diabetes / CGM Monitoring',
+        'CKD':'CKD / AKI Transition Monitoring',
+        'Post-Surgical Recovery':'Post-Surgical Recovery'
+    }
+    plans=list(cohort_map)
     rows=[]
     for i in range(1,n_participants+1):
-        rid=f'RSP-{i:04d}'; plan=plans[(i-1)%len(plans)]; age=28+(i*7)%58; cohort='Pulmonary' if plan in SPIROMETRY_PLANS else 'Cardiac'
+        rid=f'RSP-{i:04d}'; plan=plans[(i-1)%len(plans)]; age=28+(i*7)%58; cohort=cohort_map[plan]
         base_fev1=round(1.5+(i%24)*0.075,2); base_spo2=94+(i%5); base_hr=62+(i%25); adherence=max(0.48,min(.99,.72+(i%20)/100+rng.uniform(-.08,.08)))
         trajectory=['Stable','Improving','Declining','Intermittent'][i%4]
         for d in range(0,days,3):
@@ -557,12 +571,16 @@ def build_research_data(n_participants=240, days=90):
             spo2=max(86,min(100,round(base_spo2+(drift*10 if fev1 else 0)+rng.uniform(-1.5,1.5))))
             hr=max(45,min(145,round(base_hr+rng.uniform(-8,8))))
             ecg=None
-            if cohort=='Cardiac' and d%6==0:
+            if plan in ['Cardiology','Heart Failure','Coronary Artery Disease (CAD)'] and d%6==0:
                 ecg=rng.choices(['Normal Sinus Rhythm','Atrial Fibrillation','Tachycardia','Bradycardia','Unclassified'],[.66,.10,.08,.06,.10])[0]
             symptoms=max(0,min(5,round((1 if trajectory=='Stable' else 2)+(2*frac if trajectory=='Declining' else 0)+rng.uniform(-1,1))))
             alert=(spo2<92) or (fev1 and fev1<base_fev1*.85) or (ecg in ['Atrial Fibrillation','Tachycardia','Bradycardia']) or symptoms>=4
             intervention=alert and rng.random()<.88; outcome=rng.choices(['Stable at home','Earlier clinic review','Medication reviewed','Diagnostic testing','ED evaluation'],[.63,.16,.10,.08,.03])[0] if intervention else 'No intervention'
-            rows.append({'Research Participant ID':rid,'Care Path':plan,'Cohort':cohort,'Age Band':f'{(age//10)*10}s','Study Day':d+1,'Observation Date':date,'Trajectory':trajectory,'SpO2':spo2,'Heart Rate':hr,'FEV1 L':fev1,'FVC L':fvc,'FEV1/FVC %':ratio,'PEF L/min':pef,'FEV1 % Personal Baseline':round(100*fev1/base_fev1,1) if fev1 else None,'Spirometry Quality':quality,'ECG Device Classification':ecg,'Symptom Burden (0-5)':symptoms,'Alert':alert,'Intervention':intervention,'Outcome':outcome,'Data Source':'Synthetic RPM research cohort'})
+            systolic=round(118+(i%22)+rng.uniform(-8,8)) if plan in ['Heart Failure','Cardiology','Coronary Artery Disease (CAD)','Hypertension','CKD'] else None
+            diastolic=round(70+(i%14)+rng.uniform(-5,5)) if systolic else None
+            weight=round(145+(i%65)+rng.uniform(-2.5,2.5),1) if plan in ['Heart Failure','CKD','Post-Surgical Recovery'] else None
+            glucose=round(95+(i%55)+rng.uniform(-15,20)) if plan=='Diabetes / CGM' else None
+            rows.append({'Research Participant ID':rid,'Care Path':plan,'Cohort':cohort,'Age Band':f'{(age//10)*10}s','Study Day':d+1,'Observation Date':date,'Trajectory':trajectory,'SpO2':spo2,'Heart Rate':hr,'Systolic BP':systolic,'Diastolic BP':diastolic,'Weight lb':weight,'Glucose mg/dL':glucose,'FEV1 L':fev1,'FVC L':fvc,'FEV1/FVC %':ratio,'PEF L/min':pef,'FEV1 % Personal Baseline':round(100*fev1/base_fev1,1) if fev1 else None,'Spirometry Quality':quality,'ECG Device Classification':ecg,'Symptom Burden (0-5)':symptoms,'Alert':alert,'Intervention':intervention,'Outcome':outcome,'Data Source':'Synthetic RPM research cohort'})
     return pd.DataFrame(rows)
 
 def research_df(): return build_research_data()
@@ -599,7 +617,7 @@ patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 �
 clinical_menu=['4 · Clinical Command Center & Action Queue','4A · Education & Questionnaire Library','4B · RPM Fit & Transition Queue','5 · Patient 360 & Trends','6 · Clinician Interventions','7 · Care Coordination']
 integration_menu=['8 · ECG & Spirometry Documents','9 · Integration Hub / API','10 · Mock EHR','11 · Patient Identity & Duplicate Prevention','12 · Data Lineage & Audit']
 ai_menu=['13 · AI Agent Center','14 · Care Pathway Engine','15 · Architecture & Product']
-research_menu=['16 · Research Analytics Overview','17 · Cohort Explorer','18 · Spirometry Research','19 · 6L ECG Research','20 · Reports & Exports','21 · Research Analytics Guide']
+research_menu=['16 · Research Analytics Overview','16A · Cohort Catalog','17 · Cohort Explorer','18 · Spirometry Research','19 · 6L ECG Research','20 · Reports & Exports','21 · Research Analytics Guide']
 if CURRENT_USER=='Admin': ai_menu.append('15A · Logins & Roles')
 if 'selected_menu' not in st.session_state:
     st.session_state.selected_menu=patient_menu[0]
@@ -1141,9 +1159,9 @@ elif menu.startswith('16 ·'):
     st.header('Research Analytics Center')
     st.info('A de-identified, synthetic research workspace that connects longitudinal RPM measurements, symptoms, adherence, alerts, interventions and outcomes. It supports hypothesis generation and operational learning—not diagnosis, treatment, or causal claims.')
     df=research_df(); parts=df['Research Participant ID'].nunique(); obs=len(df); spi=df['FEV1 L'].notna().sum(); ecg=df['ECG Device Classification'].notna().sum(); alerts=int(df['Alert'].sum())
-    cols=st.columns(5); cols[0].metric('Participants',f'{parts:,}'); cols[1].metric('Observations',f'{obs:,}'); cols[2].metric('Spirometry sessions',f'{spi:,}'); cols[3].metric('6L ECG recordings',f'{ecg:,}'); cols[4].metric('Flagged observations',f'{alerts:,}')
+    cohort_n=df['Cohort'].nunique(); cols=st.columns(6); cols[0].metric('Participants',f'{parts:,}'); cols[1].metric('Research cohorts',f'{cohort_n:,}'); cols[2].metric('Observations',f'{obs:,}'); cols[3].metric('Spirometry sessions',f'{spi:,}'); cols[4].metric('6L ECG recordings',f'{ecg:,}'); cols[5].metric('Flagged observations',f'{alerts:,}')
     st.subheader('Research population at a glance')
-    pop=df.groupby(['Care Path','Cohort'])['Research Participant ID'].nunique().reset_index(name='Participants'); fig=go.Figure(go.Bar(x=pop['Care Path'],y=pop['Participants'],text=pop['Participants'])); fig.update_layout(height=360,xaxis_title='',yaxis_title='Participants',margin=dict(l=20,r=20,t=20,b=20)); st.plotly_chart(fig,use_container_width=True)
+    pop=df.groupby(['Cohort','Care Path'])['Research Participant ID'].nunique().reset_index(name='Participants').sort_values('Participants'); fig=go.Figure(go.Bar(y=pop['Cohort'],x=pop['Participants'],text=pop['Participants'],orientation='h')); fig.update_layout(height=520,xaxis_title='Participants',yaxis_title='',margin=dict(l=20,r=20,t=20,b=20)); st.plotly_chart(fig,use_container_width=True); st.caption('Each research cohort has a defined purpose and operational care-path source. Open Cohort Catalog for signals, example questions and intended users.')
     st.subheader('What this center is designed to answer')
     st.markdown('''**Pulmonary:** How do FEV₁/FVC/PEF trajectories, symptoms, SpO₂, adherence and technical quality change over time?  
 **Cardiac:** What is the distribution and longitudinal burden of device-reported ECG classifications, and what follows an actionable recording?  
@@ -1151,11 +1169,35 @@ elif menu.startswith('16 ·'):
 **Outcomes & safety:** Are concerning trends followed by timely human review, and are there missing-data, device, document or escalation gaps that need investigation?''')
     export_bar(df,'rpm_research_overview_data')
 
+elif menu.startswith('16A ·'):
+    st.header('Research Cohort Catalog')
+    st.caption('Cohorts represent a research purpose/population, while Care Path identifies the operational RPM pathway and Trajectory is an analytical subgroup. Keeping these concepts separate supports clearer, reproducible research questions.')
+    catalog=pd.DataFrame([
+      ['Lung Transplant Home Spirometry','Lung Transplant','Spirometry + SpO₂ + symptoms','FEV₁ trajectory, home-test quality, symptom relationships','Pulmonary researchers / transplant clinicians'],
+      ['COPD Remote Pulmonary Monitoring','COPD / Pulmonary','Spirometry + SpO₂ + symptoms','Exacerbation-associated patterns, adherence, lung-function change','Pulmonary researchers / clinicians'],
+      ['Pulmonary Home Rehabilitation','Pulmonary Home Rehab','Spirometry + SpO₂ + HR','Functional recovery and physiologic trajectory during home rehab','Pulmonary rehab / research teams'],
+      ['Pneumonitis Recovery Monitoring','Pneumonitis','Spirometry + SpO₂ + symptoms','Recovery trajectory and symptom/physiology relationships','Pulmonary / oncology research teams'],
+      ['Post-Respiratory Infection Recovery','Adult Respiratory Infection','SpO₂ + symptoms + HR','Post-acute respiratory recovery and persistent symptom patterns','Clinical research / population health'],
+      ['Cardiac Rhythm / 6L ECG','Cardiology','6L ECG + HR + symptoms','Device-reported rhythm burden, quality and follow-up actions','Cardiology / electrophysiology research'],
+      ['Heart Failure Post-Discharge','Heart Failure','Weight + BP + HR + SpO₂','Post-discharge multi-signal trends, alerts and interventions','HF research / transition teams'],
+      ['CAD / Cardiac Recovery','Coronary Artery Disease (CAD)','6L ECG + BP + HR + symptoms','Cardiac recovery patterns and rhythm-related follow-up','Cardiology research'],
+      ['Hypertension Monitoring','Hypertension','BP + HR','Home BP patterns, adherence and intervention workflows','Hypertension / outcomes research'],
+      ['Diabetes / CGM Monitoring','Diabetes / CGM','Glucose + engagement','Longitudinal glucose patterns and monitoring adherence','Diabetes research'],
+      ['CKD / AKI Transition Monitoring','CKD','BP + weight + symptoms','Post-acute fluid/BP monitoring patterns and escalation','Nephrology / transition research'],
+      ['Post-Surgical Recovery','Post-Surgical Recovery','Weight + symptoms + engagement','Recovery, symptom burden and post-discharge engagement','Surgical outcomes research']
+    ],columns=['Research Cohort','Operational Care Path','Primary Signals','Example Research Purpose','Primary Users'])
+    counts=research_df().groupby('Cohort')['Research Participant ID'].nunique().rename('Participants')
+    obs=research_df().groupby('Cohort').size().rename('Observations')
+    catalog=catalog.merge(counts,left_on='Research Cohort',right_index=True,how='left').merge(obs,left_on='Research Cohort',right_index=True,how='left')
+    st.dataframe(catalog,hide_index=True,use_container_width=True,height=500)
+    st.info('Analysis subgroups such as Stable, Improving, Declining, Intermittent, high/low adherence, intervention/no intervention, and data-quality strata can be applied inside a cohort without redefining the cohort itself.')
+    export_bar(research_df(),'rpm_research_cohort_catalog_source_data')
+
 elif menu.startswith('17 ·'):
     st.header('Cohort Explorer')
     st.caption('Build transparent research cohorts without exposing operational MRNs. Research Participant IDs are used by default.')
     df=research_filters(research_df(),'cohort_'); st.write(f"**{df['Research Participant ID'].nunique()} participants · {len(df):,} longitudinal observations**")
-    st.dataframe(df[['Research Participant ID','Care Path','Cohort','Age Band','Observation Date','Trajectory','SpO2','Heart Rate','FEV1 L','FEV1/FVC %','ECG Device Classification','Symptom Burden (0-5)','Alert','Intervention','Outcome']],hide_index=True,use_container_width=True,height=430)
+    st.dataframe(df[['Research Participant ID','Care Path','Cohort','Age Band','Observation Date','Trajectory','SpO2','Heart Rate','Systolic BP','Diastolic BP','Weight lb','Glucose mg/dL','FEV1 L','FEV1/FVC %','ECG Device Classification','Symptom Burden (0-5)','Alert','Intervention','Outcome']],hide_index=True,use_container_width=True,height=430)
     export_bar(df,'rpm_filtered_research_cohort')
 
 elif menu.startswith('18 ·'):
