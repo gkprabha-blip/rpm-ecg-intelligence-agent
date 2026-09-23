@@ -76,3 +76,10 @@ V6.1 rebuilds the application shell around the approved hybrid UX direction: ent
 - Wider, more readable navigation with larger section labels and menu typography.
 - RPM Fit queue redesigned as candidate cards with the complete Why Flagged rationale visible without double-clicking.
 - Stronger visual hierarchy while preserving the V4.2 unified data architecture and V6 workflow shell.
+
+
+## V6.4 visual workspace transformation
+- Command Center: stronger KPI hierarchy and Clinical Intelligence treatment inspired by the approved Concept 1/2 direction.
+- Patient 360: persistent patient context banner and clearer clinical hierarchy while retaining trends, thresholds, ECG/spirometry, samples, and questionnaires.
+- Research Analytics: insight-first research KPIs and signal cards with explicit Learn-stage positioning.
+- V6.3 navigation and underlying unified patient/research workflows remain intact.
