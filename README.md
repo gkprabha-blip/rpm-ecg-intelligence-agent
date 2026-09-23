@@ -1,15 +1,33 @@
-# RPM Connected Care AI Platform v3.4
+# RPM Connected Care AI Platform · V4.0
 
-Synthetic healthcare product portfolio demonstrating end-to-end Remote Patient Monitoring workflows. All patients, measurements, credentials, rules, reports, and workflows are synthetic portfolio content.
+A 100% synthetic Streamlit portfolio demonstrating end-to-end Remote Patient Monitoring product design: discharge/RPM Fit screening, human-reviewed enrollment, care-path-specific kit fulfillment and activation, longitudinal monitoring, ECG/spirometry documents, clinical workflows, EHR integration, auditability, and a new Research Analytics Center.
 
-## v3.4 refinement release
-- Removes remaining legacy emoji-style PDF/save actions in the corrected workflows and uses modern Material Symbols actions.
-- ECG Trend is now a single rounded clinical card containing trend graph, complete result-history table, historical result selector, inline PDF preview, and PDF download.
-- Historical ECG reports can be selected by date/time and downloaded, rather than limiting the Patient 360 experience to the latest result.
-- Spirometry Trend uses the same interaction pattern: graph, table, historical selector, preview, and download inside one clinical card.
-- Spirometry PDF plotting regions were moved lower and resized to prevent the flow-volume and volume-time curves from colliding with the measurement table and explanatory text.
-- Architecture & Product Story now begins with the complete RPM operating workflow: acute-care discharge planning → RPM Fit → human review → consent/care path → kit configuration/fulfillment → receipt/pairing/training → active monitoring → alert/intervention → EHR/audit.
-- Research Analytics is intentionally deferred to a later release.
+## V4.0 — Research Analytics Center
+- **Research Analytics Overview** — cohort and observation volume, spirometry sessions, 6L ECG recordings, flagged observations and population distribution.
+- **Cohort Explorer** — filter synthetic/de-identified participants by care path, cohort and trajectory. Operational MRNs are hidden from research views by default.
+- **Spirometry Research** — longitudinal FEV1, FVC, FEV1/FVC, PEF, personal-baseline change, technical quality, SpO2, symptoms, alerts, interventions and outcomes.
+- **6L ECG Research** — device-reported classification burden, HR, symptoms, alerts, interventions and outcomes. The prototype does not interpret ECG waveforms.
+- **Reports & Exports** — report catalog covering lung-function trajectory, spirometry quality/adherence, ECG event burden, symptom/device relationships, alert-to-intervention, care-path comparisons, missingness/data quality, clinical efficiency, patient safety and patient outcomes.
+- **Research Question Builder** — define an exploratory population, measure and outcome/context.
+- **Research Analytics Guide** — plain-language explanations for researchers, clinicians, physicians, operations and non-research users, including clinical-efficiency, patient-outcome and patient-safety measurement frameworks.
+- **Exports** — CSV and multi-sheet Excel workbooks; both can be imported into Google Sheets. Direct Google Sheets write-back is intentionally not simulated without OAuth/API integration.
 
-## Safety / portfolio boundary
-The app is not a medical device and does not diagnose, prescribe, or autonomously enroll patients. ECG classifications are synthetic device-reported inputs. Spirometry reference fields are illustrative. Human clinical review remains required.
+## Synthetic research dataset
+V4.0 generates a deterministic synthetic cohort of 240 research participants with thousands of longitudinal observations across pulmonary and cardiac RPM pathways. It intentionally includes stable, improving, declining and intermittent trajectories; missing observations; spirometry quality variation; device-reported ECG categories; symptoms; alerts; human interventions; and synthetic outcomes.
+
+## Research guardrails
+This is a portfolio demonstration, not clinical evidence, a medical device, or a diagnostic/treatment system. All participants, measurements, thresholds, associations and outcomes are synthetic. Research views use Research Participant IDs rather than operational MRNs by default. Automatically generated summaries are descriptive/exploratory and must not be interpreted as causal effects. Production research would require protocol/governance review, validated endpoints, appropriate statistical methods, privacy controls, bias/equity assessment and prospective validation as applicable.
+
+## Demo authentication
+The app starts signed in as **Admin** for portfolio review. Demo accounts include Patient, Clinician, Provider, RPM Admin, Integrations, Researcher and Admin. Credentials are visible to Admin under **Logins & Roles**. These simple credentials are portfolio-only; production healthcare systems should use enterprise identity/SSO, MFA, server-side authorization and auditable least-privilege controls.
+
+## Run locally
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+## Deployment
+Replace `app.py`, `README.md`, and `requirements.txt` in the GitHub repository. Keep `.streamlit/config.toml` unless intentionally changing the theme. Streamlit Community Cloud will redeploy from the repository.

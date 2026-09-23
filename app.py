@@ -1,4 +1,4 @@
-import io, json, math, re, base64
+import io, json, math, re, base64, random
 from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v3.4.1', page_icon='RPM', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v4.0', page_icon='RPM', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -499,6 +499,7 @@ DEMO_ACCOUNTS={
  'Clinician':{'password':'Clinician Password','role':'Clinician / RPM Nurse','description':'Assigned-patient Command Center, Patient 360, interventions, education/questionnaires and communications.'},
  'Provider':{'password':'Provider Password','role':'Provider / Physician','description':'Clinical review, escalations, trends/reports and intervention review.'},
  'RPM Admin':{'password':'RPM Admin Password','role':'RPM Administrator','description':'Enrollment, assignments, care pathways and operational configuration.'},
+ 'Researcher':{'password':'Researcher Password','role':'Researcher','description':'De-identified Research Analytics Center, cohorts, reports and exports; no operational MRNs by default.'},
  'Integrations':{'password':'Integrations Password','role':'Integrations / Support','description':'Integration Hub, device/interface status, EHR delivery, documents and lineage troubleshooting.'},
  'Admin':{'password':'ADMIN','role':'Portfolio Administrator','description':'Full portfolio access, including Logins & Roles.'}}
 if 'auth_user' not in st.session_state: st.session_state.auth_user='Admin'
@@ -521,7 +522,7 @@ div[data-testid="stSelectbox"] label p{font-size:.78rem!important;font-weight:65
 .role-chip{font-size:.88rem;font-weight:600}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.4.1</span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.0</span></div>''', unsafe_allow_html=True)
     st.subheader('🔐 Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -532,13 +533,73 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.4.1</span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.0</span></div>''', unsafe_allow_html=True)
 st.caption(f'Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data • Signed in as {CURRENT_USER} ({CURRENT_ROLE})')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
+
+@st.cache_data(show_spinner=False)
+def build_research_data(n_participants=240, days=90):
+    rng=random.Random(4060)
+    plans=['Lung Transplant','COPD / Pulmonary','Pulmonary Home Rehab','Pneumonitis','Cardiology','Heart Failure','Coronary Artery Disease (CAD)']
+    rows=[]
+    for i in range(1,n_participants+1):
+        rid=f'RSP-{i:04d}'; plan=plans[(i-1)%len(plans)]; age=28+(i*7)%58; cohort='Pulmonary' if plan in SPIROMETRY_PLANS else 'Cardiac'
+        base_fev1=round(1.5+(i%24)*0.075,2); base_spo2=94+(i%5); base_hr=62+(i%25); adherence=max(0.48,min(.99,.72+(i%20)/100+rng.uniform(-.08,.08)))
+        trajectory=['Stable','Improving','Declining','Intermittent'][i%4]
+        for d in range(0,days,3):
+            if rng.random()>adherence: continue
+            date=(datetime.now().date()-timedelta(days=days-1-d)).isoformat(); frac=d/max(days-1,1)
+            drift={'Stable':0,'Improving':.10,'Declining':-.18,'Intermittent':-.04}[trajectory]*frac
+            fev1=round(max(.7,base_fev1*(1+drift)+rng.uniform(-.08,.08)),2) if plan in SPIROMETRY_PLANS else None
+            fvc=round(fev1/(.68+rng.uniform(.02,.12)),2) if fev1 else None
+            ratio=round(100*fev1/fvc,1) if fvc else None; pef=round(230+(i%120)+rng.uniform(-25,25)) if fev1 else None
+            quality=rng.choices(['A / acceptable','B / usable','Review quality'],[.72,.20,.08])[0] if fev1 else None
+            spo2=max(86,min(100,round(base_spo2+(drift*10 if fev1 else 0)+rng.uniform(-1.5,1.5))))
+            hr=max(45,min(145,round(base_hr+rng.uniform(-8,8))))
+            ecg=None
+            if cohort=='Cardiac' and d%6==0:
+                ecg=rng.choices(['Normal Sinus Rhythm','Atrial Fibrillation','Tachycardia','Bradycardia','Unclassified'],[.66,.10,.08,.06,.10])[0]
+            symptoms=max(0,min(5,round((1 if trajectory=='Stable' else 2)+(2*frac if trajectory=='Declining' else 0)+rng.uniform(-1,1))))
+            alert=(spo2<92) or (fev1 and fev1<base_fev1*.85) or (ecg in ['Atrial Fibrillation','Tachycardia','Bradycardia']) or symptoms>=4
+            intervention=alert and rng.random()<.88; outcome=rng.choices(['Stable at home','Earlier clinic review','Medication reviewed','Diagnostic testing','ED evaluation'],[.63,.16,.10,.08,.03])[0] if intervention else 'No intervention'
+            rows.append({'Research Participant ID':rid,'Care Path':plan,'Cohort':cohort,'Age Band':f'{(age//10)*10}s','Study Day':d+1,'Observation Date':date,'Trajectory':trajectory,'SpO2':spo2,'Heart Rate':hr,'FEV1 L':fev1,'FVC L':fvc,'FEV1/FVC %':ratio,'PEF L/min':pef,'FEV1 % Personal Baseline':round(100*fev1/base_fev1,1) if fev1 else None,'Spirometry Quality':quality,'ECG Device Classification':ecg,'Symptom Burden (0-5)':symptoms,'Alert':alert,'Intervention':intervention,'Outcome':outcome,'Data Source':'Synthetic RPM research cohort'})
+    return pd.DataFrame(rows)
+
+def research_df(): return build_research_data()
+
+def research_xlsx(df, title='RPM Research Export'):
+    out=io.BytesIO()
+    with pd.ExcelWriter(out,engine='openpyxl') as w:
+        pd.DataFrame([{'Report':title,'Generated':datetime.now().strftime('%Y-%m-%d %H:%M'),'Scope':'100% synthetic/de-identified portfolio data','Important':'Associations are exploratory; not validated clinical evidence.'}]).to_excel(w,index=False,sheet_name='Report Summary')
+        df.to_excel(w,index=False,sheet_name='Longitudinal Observations')
+        df[['Research Participant ID','Care Path','Cohort','Age Band','Trajectory']].drop_duplicates().to_excel(w,index=False,sheet_name='Participants')
+        df[df['FEV1 L'].notna()].to_excel(w,index=False,sheet_name='Spirometry')
+        df[df['ECG Device Classification'].notna()].to_excel(w,index=False,sheet_name='ECG')
+        df[['Research Participant ID','Observation Date','Symptom Burden (0-5)','Alert','Intervention','Outcome']].to_excel(w,index=False,sheet_name='Interventions Outcomes')
+    return out.getvalue()
+
+def export_bar(df,prefix):
+    c1,c2=st.columns(2)
+    c1.download_button('Download CSV',df.to_csv(index=False).encode(),file_name=f'{prefix}.csv',mime='text/csv',use_container_width=True)
+    c2.download_button('Download Excel',research_xlsx(df,prefix),file_name=f'{prefix}.xlsx',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',use_container_width=True)
+    st.caption('CSV and Excel files can be imported directly into Google Sheets. Direct Google Workspace write-back would require authenticated OAuth/API integration and is not simulated here.')
+
+def research_filters(df,key):
+    a,b,c=st.columns(3); plans=a.multiselect('Care paths',sorted(df['Care Path'].unique()),key=key+'p'); cohorts=b.multiselect('Cohorts',sorted(df['Cohort'].unique()),key=key+'c'); traj=c.multiselect('Trajectories',sorted(df['Trajectory'].unique()),key=key+'t')
+    x=df.copy()
+    if plans: x=x[x['Care Path'].isin(plans)]
+    if cohorts: x=x[x['Cohort'].isin(cohorts)]
+    if traj: x=x[x['Trajectory'].isin(traj)]
+    return x
+
+def metric_card(label,value,helptext=''):
+    st.metric(label,value,help=helptext or None)
+
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center','3A · Education Center']
 clinical_menu=['4 · Clinical Command Center & Action Queue','4A · Education & Questionnaire Library','4B · RPM Fit & Transition Queue','5 · Patient 360 & Trends','6 · Clinician Interventions','7 · Care Coordination']
 integration_menu=['8 · ECG & Spirometry Documents','9 · Integration Hub / API','10 · Mock EHR','11 · Patient Identity & Duplicate Prevention','12 · Data Lineage & Audit']
 ai_menu=['13 · AI Agent Center','14 · Care Pathway Engine','15 · Architecture & Product']
+research_menu=['16 · Research Analytics Overview','17 · Cohort Explorer','18 · Spirometry Research','19 · 6L ECG Research','20 · Reports & Exports','21 · Research Analytics Guide']
 if CURRENT_USER=='Admin': ai_menu.append('15A · Logins & Roles')
 if 'selected_menu' not in st.session_state:
     st.session_state.selected_menu=patient_menu[0]
@@ -554,12 +615,13 @@ def nav_group(title, items):
 
 if CURRENT_USER=='Patient': nav_group('👤 PATIENT EXPERIENCE',patient_menu)
 elif CURRENT_USER=='Integrations': nav_group('🔗 INTEGRATION',integration_menu)
+elif CURRENT_USER=='Researcher': nav_group('RESEARCH ANALYTICS',research_menu)
 elif CURRENT_USER in ['Clinician','Provider']:
-    nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',[x for x in integration_menu if x.startswith(('8 ·','10 ·','12 ·'))])
+    nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',[x for x in integration_menu if x.startswith(('8 ·','10 ·','12 ·'))]); nav_group('RESEARCH ANALYTICS',research_menu)
 elif CURRENT_USER=='RPM Admin':
-    nav_group('👤 PATIENT EXPERIENCE',patient_menu); nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',integration_menu); nav_group('🤖 AI & PRODUCT',['14 · Care Pathway Engine','15 · Architecture & Product'])
+    nav_group('👤 PATIENT EXPERIENCE',patient_menu); nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',integration_menu); nav_group('🤖 AI & PRODUCT',['14 · Care Pathway Engine','15 · Architecture & Product']); nav_group('RESEARCH ANALYTICS',research_menu)
 else:
-    nav_group('👤 PATIENT EXPERIENCE',patient_menu); nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',integration_menu); nav_group('🤖 AI & PRODUCT',ai_menu)
+    nav_group('👤 PATIENT EXPERIENCE',patient_menu); nav_group('🩺 CLINICAL EXPERIENCE',clinical_menu); nav_group('🔗 INTEGRATION',integration_menu); nav_group('🤖 AI & PRODUCT',ai_menu); nav_group('RESEARCH ANALYTICS',research_menu)
 st.sidebar.divider(); st.sidebar.markdown(f'<span class="role-chip">Signed in as: {CURRENT_USER}<br>{CURRENT_ROLE}</span>',unsafe_allow_html=True)
 if st.sidebar.button('Sign out',use_container_width=True): st.session_state.auth_user=None; st.rerun()
 menu=st.session_state.selected_menu
@@ -1059,7 +1121,7 @@ elif menu.startswith('14 ·'):
     st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
 
 elif menu.startswith('15 ·'):
-    st.header('Architecture & Product Story'); st.info('V3.4.1 (corrected icon build) is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
+    st.header('Architecture & Product Story'); st.info('V4.0 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
   RPM Fit Screening → Human Eligibility Review → Consent / Care Path Selection
                     │
                     ▼
@@ -1073,6 +1135,116 @@ elif menu.startswith('15 ·'):
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
 
+
+
+elif menu.startswith('16 ·'):
+    st.header('Research Analytics Center')
+    st.info('A de-identified, synthetic research workspace that connects longitudinal RPM measurements, symptoms, adherence, alerts, interventions and outcomes. It supports hypothesis generation and operational learning—not diagnosis, treatment, or causal claims.')
+    df=research_df(); parts=df['Research Participant ID'].nunique(); obs=len(df); spi=df['FEV1 L'].notna().sum(); ecg=df['ECG Device Classification'].notna().sum(); alerts=int(df['Alert'].sum())
+    cols=st.columns(5); cols[0].metric('Participants',f'{parts:,}'); cols[1].metric('Observations',f'{obs:,}'); cols[2].metric('Spirometry sessions',f'{spi:,}'); cols[3].metric('6L ECG recordings',f'{ecg:,}'); cols[4].metric('Flagged observations',f'{alerts:,}')
+    st.subheader('Research population at a glance')
+    pop=df.groupby(['Care Path','Cohort'])['Research Participant ID'].nunique().reset_index(name='Participants'); fig=go.Figure(go.Bar(x=pop['Care Path'],y=pop['Participants'],text=pop['Participants'])); fig.update_layout(height=360,xaxis_title='',yaxis_title='Participants',margin=dict(l=20,r=20,t=20,b=20)); st.plotly_chart(fig,use_container_width=True)
+    st.subheader('What this center is designed to answer')
+    st.markdown('''**Pulmonary:** How do FEV₁/FVC/PEF trajectories, symptoms, SpO₂, adherence and technical quality change over time?  
+**Cardiac:** What is the distribution and longitudinal burden of device-reported ECG classifications, and what follows an actionable recording?  
+**Workflow:** How quickly are alerts reviewed and acted on, and where is operational friction occurring?  
+**Outcomes & safety:** Are concerning trends followed by timely human review, and are there missing-data, device, document or escalation gaps that need investigation?''')
+    export_bar(df,'rpm_research_overview_data')
+
+elif menu.startswith('17 ·'):
+    st.header('Cohort Explorer')
+    st.caption('Build transparent research cohorts without exposing operational MRNs. Research Participant IDs are used by default.')
+    df=research_filters(research_df(),'cohort_'); st.write(f"**{df['Research Participant ID'].nunique()} participants · {len(df):,} longitudinal observations**")
+    st.dataframe(df[['Research Participant ID','Care Path','Cohort','Age Band','Observation Date','Trajectory','SpO2','Heart Rate','FEV1 L','FEV1/FVC %','ECG Device Classification','Symptom Burden (0-5)','Alert','Intervention','Outcome']],hide_index=True,use_container_width=True,height=430)
+    export_bar(df,'rpm_filtered_research_cohort')
+
+elif menu.startswith('18 ·'):
+    st.header('Spirometry Research')
+    st.caption('Longitudinal home-spirometry analysis for synthetic pulmonary cohorts. Quality and missingness are shown alongside physiologic trends so technically weak sessions are not treated as equally reliable evidence.')
+    df=research_filters(research_df()[research_df()['FEV1 L'].notna()].copy(),'spi_');
+    a,b,c,d=st.columns(4); a.metric('Participants',df['Research Participant ID'].nunique()); b.metric('Sessions',len(df)); c.metric('Median FEV₁',f"{df['FEV1 L'].median():.2f} L"); d.metric('Quality-review sessions',f"{(df['Spirometry Quality']=='Review quality').mean()*100:.1f}%")
+    trend=df.groupby('Study Day',as_index=False)['FEV1 % Personal Baseline'].mean(); fig=go.Figure(go.Scatter(x=trend['Study Day'],y=trend['FEV1 % Personal Baseline'],mode='lines+markers',name='Mean % baseline')); fig.update_layout(height=360,xaxis_title='Study day',yaxis_title='FEV₁ % personal baseline',margin=dict(l=20,r=20,t=20,b=20)); st.plotly_chart(fig,use_container_width=True)
+    st.subheader('Trajectory by participant')
+    rid=st.selectbox('Research Participant ID',sorted(df['Research Participant ID'].unique()),key='spi_rid'); one=df[df['Research Participant ID']==rid]; fig2=go.Figure(); fig2.add_trace(go.Scatter(x=one['Observation Date'],y=one['FEV1 L'],mode='lines+markers',name='FEV₁')); fig2.add_trace(go.Scatter(x=one['Observation Date'],y=one['FVC L'],mode='lines+markers',name='FVC')); fig2.update_layout(height=330,yaxis_title='Liters',margin=dict(l=20,r=20,t=20,b=20)); st.plotly_chart(fig2,use_container_width=True)
+    st.dataframe(one[['Observation Date','FEV1 L','FVC L','FEV1/FVC %','PEF L/min','FEV1 % Personal Baseline','Spirometry Quality','SpO2','Symptom Burden (0-5)','Alert','Intervention','Outcome']],hide_index=True,use_container_width=True)
+    st.info('Research use: examine longitudinal lung-function trajectory, home-test adherence/quality, symptom and SpO₂ relationships, and what happened after concerning changes. This prototype does not infer diagnosis or treatment effect.')
+    export_bar(df,'spirometry_research_dataset')
+
+elif menu.startswith('19 ·'):
+    st.header('6L ECG Research')
+    st.caption('Analysis of synthetic device-reported 6-lead ECG classifications and downstream human workflow. The portfolio does not independently interpret ECG waveforms.')
+    df=research_df(); df=df[df['ECG Device Classification'].notna()].copy(); df=research_filters(df,'ecg_')
+    dist=df['ECG Device Classification'].value_counts().reset_index(); dist.columns=['Classification','Recordings']; fig=go.Figure(go.Bar(x=dist['Classification'],y=dist['Recordings'],text=dist['Recordings'])); fig.update_layout(height=350,xaxis_title='',yaxis_title='Recordings',margin=dict(l=20,r=20,t=20,b=20)); st.plotly_chart(fig,use_container_width=True)
+    a,b,c,d=st.columns(4); a.metric('Participants',df['Research Participant ID'].nunique()); b.metric('Recordings',len(df)); c.metric('Unclassified',f"{(df['ECG Device Classification']=='Unclassified').mean()*100:.1f}%"); d.metric('Alert-linked',f"{df['Alert'].mean()*100:.1f}%")
+    st.dataframe(df[['Research Participant ID','Care Path','Observation Date','Heart Rate','ECG Device Classification','Symptom Burden (0-5)','Alert','Intervention','Outcome']],hide_index=True,use_container_width=True,height=380)
+    st.info('Research use: quantify recording burden and device-reported categories, study unclassified/quality workflow, relate recordings to symptoms and human interventions, and identify questions for prospective validation.')
+    export_bar(df,'ecg_research_dataset')
+
+elif menu.startswith('20 ·'):
+    st.header('Reports & Exports')
+    st.caption('A reporting workbench: each report states the question, intended audience, interpretation and limitation before presenting the data.')
+    df=research_df()
+    reports={
+      'Longitudinal Lung Function':'How do FEV₁ and FEV₁ % personal baseline change over time in pulmonary cohorts?',
+      'Spirometry Quality & Adherence':'Are home tests being completed consistently, and what proportion needs technical-quality review?',
+      'ECG Classification & Event Burden':'What device-reported ECG categories occur, how often, and what follows them?',
+      'Symptoms + Device Signals':'How do symptom burden and physiologic measurements move together over time?',
+      'Alert-to-Intervention':'What proportion of flagged observations receive a documented human intervention?',
+      'Care-Path Comparison':'How do engagement, alerts and interventions differ across synthetic care pathways?',
+      'Data Quality & Missingness':'Where are missing or technically questionable data creating research/clinical blind spots?',
+      'Clinical Efficiency':'How efficiently does the simulated RPM workflow convert signals into human review and documented action?',
+      'Patient Safety':'Are concerning signals, poor-quality data and unresolved workflow exceptions visible and followed up?',
+      'Patient Outcomes':'What longitudinal outcomes are observed after enrollment/intervention, without claiming causality?'}
+    report=st.selectbox('Report',list(reports)); st.markdown(f'### {report}'); st.write(reports[report])
+    if report=='Longitudinal Lung Function':
+        x=df[df['FEV1 L'].notna()].groupby('Study Day',as_index=False)['FEV1 % Personal Baseline'].mean(); fig=go.Figure(go.Scatter(x=x['Study Day'],y=x['FEV1 % Personal Baseline'],mode='lines+markers')); fig.update_layout(yaxis_title='Mean FEV₁ % personal baseline',xaxis_title='Study day',height=360); st.plotly_chart(fig,use_container_width=True); out=df[df['FEV1 L'].notna()]
+    elif report=='ECG Classification & Event Burden':
+        x=df[df['ECG Device Classification'].notna()]['ECG Device Classification'].value_counts().reset_index(); x.columns=['Classification','Recordings']; fig=go.Figure(go.Bar(x=x['Classification'],y=x['Recordings'])); st.plotly_chart(fig,use_container_width=True); out=df[df['ECG Device Classification'].notna()]
+    else:
+        summary=df.groupby('Care Path').agg(Participants=('Research Participant ID','nunique'),Observations=('Research Participant ID','size'),Alert_Rate=('Alert','mean'),Intervention_Rate=('Intervention','mean'),Mean_SpO2=('SpO2','mean')).reset_index(); summary['Alert Rate %']=(summary.pop('Alert_Rate')*100).round(1); summary['Intervention Rate %']=(summary.pop('Intervention_Rate')*100).round(1); summary['Mean_SpO2']=summary['Mean_SpO2'].round(1); st.dataframe(summary,hide_index=True,use_container_width=True); out=df
+    st.warning('Interpretation guardrail: these are descriptive/exploratory synthetic results. Differences can reflect cohort mix, missingness or simulated assumptions; they do not establish that RPM caused an outcome.')
+    export_bar(out,'research_report_'+re.sub(r'[^a-z0-9]+','_',report.lower()).strip('_'))
+    st.divider(); st.subheader('Research Question Builder')
+    q1,q2,q3=st.columns(3); pop=q1.selectbox('Population',['All']+sorted(df['Care Path'].unique())); measure=q2.selectbox('Primary measure',['FEV₁ % Personal Baseline','SpO2','Heart Rate','Symptom Burden (0-5)','ECG Device Classification']); outcome=q3.selectbox('Outcome/context',['Intervention','Outcome','Alert'])
+    qdf=df if pop=='All' else df[df['Care Path']==pop]; st.success(f'Question: In {pop} participants, how does {measure} relate longitudinally to {outcome}?  Cohort: {qdf["Research Participant ID"].nunique()} participants / {len(qdf):,} observations.')
+    st.caption('This builder defines an exploratory cohort/question. Formal statistical inference, protocol approval and validated endpoints would be separate research activities.')
+
+elif menu.startswith('21 ·'):
+    st.header('Research Analytics Guide')
+    st.info('This page explains the Research Analytics Center in plain language so clinicians, physicians, researchers, product teams and operational leaders can understand what each output depicts and how it may support safer, more efficient care.')
+    guide=[
+      ('Research Overview','Population-level orientation: cohort size, observations, device-result volume and flagged observations.','Researchers / program leaders','Shows whether there is enough longitudinal data to ask a question and where activity is concentrated.'),
+      ('Cohort Explorer','Filters de-identified participants into a reproducible analysis population.','Researchers / analysts','Supports subgroup analysis while keeping operational MRNs out of the research view by default.'),
+      ('Spirometry Research','FEV₁, FVC, FEV₁/FVC, PEF, personal-baseline change, quality, symptoms and interventions over time.','Pulmonary researchers / clinicians','Helps study trajectory, adherence, technical quality and whether concerning changes precede review or outcomes.'),
+      ('6L ECG Research','Device-reported ECG classifications, heart rate, symptoms, alerts and human follow-up.','Cardiac researchers / clinicians','Helps quantify event burden, unclassified recordings and workflow after potentially actionable device results.'),
+      ('Reports & Exports','Reusable report definitions, graphs and downloadable analysis-ready datasets.','Research / quality / leadership','Turns longitudinal observations into understandable evidence packages while preserving the underlying rows for independent analysis.')]
+    st.dataframe(pd.DataFrame(guide,columns=['Output','What it depicts','Primary users','How it can help']),hide_index=True,use_container_width=True)
+    st.subheader('How to measure clinical efficiency')
+    st.markdown('''**Time to review:** alert timestamp → first clinician review.  
+**Time to patient contact:** alert timestamp → successful outreach.  
+**Actionable-alert rate:** alerts resulting in clinically meaningful review/action ÷ total alerts.  
+**Documentation completion:** interventions documented within the defined service window ÷ interventions requiring documentation.  
+**Automation/data-ingestion success:** successfully received/mapped readings ÷ expected transmissions.  
+**Workload balancing:** alerts/participants per RPM clinician, plus time spent on technical vs clinical work.  
+Use medians and percentiles, not only averages; stratify by care path and priority; include balancing measures so speed does not come at the expense of safety.''')
+    st.subheader('How to measure patient outcomes')
+    st.markdown('''**Engagement/adherence:** completed expected readings/tasks ÷ expected readings/tasks.  
+**Physiologic trajectory:** within-patient change from baseline (for example FEV₁ % personal baseline), analyzed with technical quality and clinical context.  
+**Symptom trajectory:** repeated patient-reported symptom burden over time.  
+**Follow-through:** completed recommended follow-up ÷ recommended follow-up.  
+**Utilization/outcomes:** where a study legitimately has those endpoints, examine post-discharge clinic/ED/hospital events with an appropriate comparison design.  
+Outcome improvement requires a valid study design; a dashboard trend alone cannot prove RPM caused the change.''')
+    st.subheader('How to measure patient safety')
+    st.markdown('''**Critical-alert response:** urgent/high-priority alerts reviewed within the organization-defined window ÷ such alerts.  
+**Unresolved-alert backlog:** open alerts beyond their expected review window.  
+**Data-quality risk:** missing, poor-quality or unclassified device results requiring repeat/review.  
+**Device/connectivity risk:** failed transmissions, low battery, pairing failures and replacement delays.  
+**Document integrity:** PDFs passing patient-identifier/document-routing validation ÷ generated reports.  
+**Escalation closure:** escalations with documented disposition ÷ escalations opened.  
+Safety metrics should trigger human review and quality improvement; they are not autonomous treatment rules.''')
+    st.subheader('From research signal to better care')
+    st.code('''Reliable longitudinal data → reproducible cohort → descriptive analysis → hypothesis → clinical/research review → approved study / validation → evidence → governed pathway change → prospective monitoring of benefit + safety''')
+    st.warning('All V4.0 research participants, measurements, associations, thresholds and outcomes are synthetic. The center demonstrates product and analytics design, not validated clinical evidence.')
 
 elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
     st.header('Logins & Roles')
