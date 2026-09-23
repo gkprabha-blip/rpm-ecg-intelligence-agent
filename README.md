@@ -1,30 +1,15 @@
-# RPM Connected Care AI Platform · V3.3
+# RPM Connected Care AI Platform v3.4
 
-Synthetic healthcare product portfolio demonstrating a connected Remote Patient Monitoring workflow. All patients, credentials, measurements, reports, rules and workflows are synthetic portfolio content.
+Synthetic healthcare product portfolio demonstrating end-to-end Remote Patient Monitoring workflows. All patients, measurements, credentials, rules, reports, and workflows are synthetic portfolio content.
 
-## V3.3 foundation before Research Analytics
+## v3.4 refinement release
+- Removes remaining legacy emoji-style PDF/save actions in the corrected workflows and uses modern Material Symbols actions.
+- ECG Trend is now a single rounded clinical card containing trend graph, complete result-history table, historical result selector, inline PDF preview, and PDF download.
+- Historical ECG reports can be selected by date/time and downloaded, rather than limiting the Patient 360 experience to the latest result.
+- Spirometry Trend uses the same interaction pattern: graph, table, historical selector, preview, and download inside one clinical card.
+- Spirometry PDF plotting regions were moved lower and resized to prevent the flow-volume and volume-time curves from colliding with the measurement table and explanatory text.
+- Architecture & Product Story now begins with the complete RPM operating workflow: acute-care discharge planning → RPM Fit → human review → consent/care path → kit configuration/fulfillment → receipt/pairing/training → active monitoring → alert/intervention → EHR/audit.
+- Research Analytics is intentionally deferred to a later release.
 
-- RPM Fit, Enrollment & Kit Transition workflow for acute-care discharge candidates.
-- Human enrollment gate: Fit Score is decision support and never auto-enrolls a patient.
-- Care-path-specific kit configuration so ECG and spirometry are included only when appropriate to the selected pathway/order.
-- Fulfillment methods: ship to home or provide during acute-care discharge.
-- Enrollment, kit-delivery and activation statuses from candidate through active monitoring.
-- `Enroll in RPM & add to My Patients` writes the candidate into the shared session patient registry; Patient 360 can then find the patient immediately. Trends begin after the first reading.
-- More polished ECG and spirometry PDFs with colored clinical-style curves, identifiers and additional result context.
-- Modernized PDF view/download controls and a distinct pulse-oximeter-style SpO2 icon.
-
-## Important safety / product notes
-
-The RPM Fit Score and cut points are illustrative product-design assumptions, not validated clinical criteria. Production use would require clinical governance, validation, equity/bias review, security, identity controls, consent, device workflow validation and organization-approved protocols. ECG classifications are treated as device-reported inputs. Synthetic spirometry reference values are illustrative and do not implement validated reference equations.
-
-## Demo Admin
-
-Username: `Admin`  
-Password: `ADMIN`
-
-## Run
-
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+## Safety / portfolio boundary
+The app is not a medical device and does not diagnose, prescribe, or autonomously enroll patients. ECG classifications are synthetic device-reported inputs. Spirometry reference fields are illustrative. Human clinical review remains required.
