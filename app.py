@@ -603,11 +603,25 @@ header[data-testid="stHeader"]{height:0!important;background:transparent!importa
 .workspace-tabs{display:flex;gap:.25rem;border-bottom:1px solid #DCE6EC;margin:.25rem 0 .75rem;padding-left:.1rem}.workspace-tabs span{font-size:.77rem;font-weight:700;color:#64748B;padding:.5rem .72rem;border-bottom:2px solid transparent}.workspace-tabs span.active{color:#1D4ED8;border-bottom-color:#2563EB;background:#F7FAFF;border-radius:7px 7px 0 0}
 [data-testid="stMetric"]{border-radius:10px!important;padding:.62rem .75rem!important;box-shadow:none!important}.insight-card{border-radius:11px!important;padding:.78rem .9rem!important;margin:.4rem 0 .7rem!important}
 [data-testid="stDataFrame"]{border:1px solid #E0E8ED;border-radius:10px;overflow:hidden}[data-testid="stDataFrame"] thead th,[data-testid="stDataFrame"] [role="columnheader"]{font-size:.84rem!important}
-h1{font-size:1.65rem!important}h2{font-size:1.3rem!important}h3{font-size:1.05rem!important}
+h1{font-size:2.05rem!important;line-height:1.16!important;font-weight:800!important;text-align:left!important;margin:.55rem 0 .45rem!important}
+h2{font-size:1.62rem!important;line-height:1.2!important;font-weight:800!important;text-align:left!important;margin:1rem 0 .5rem!important}
+h3{font-size:1.28rem!important;line-height:1.22!important;font-weight:780!important;text-align:left!important;margin:.9rem 0 .42rem!important}
+[data-testid="stSidebar"]{min-width:272px!important;max-width:272px!important}
+[data-testid="stSidebar"] h3{font-size:.78rem!important;letter-spacing:.13em!important;color:#A9C7DC!important;margin:1.25rem 0 .38rem!important;padding:0 .72rem!important;font-weight:850!important}
+[data-testid="stSidebar"] .stButton>button{padding:.66rem .76rem!important;min-height:2.7rem!important;font-size:.92rem!important;font-weight:720!important;line-height:1.22!important;margin:.08rem 0!important}
+[data-testid="stSidebar"] .stButton>button p{font-size:.92rem!important;font-weight:720!important;line-height:1.22!important}
+.side-brand{padding:.9rem .7rem 1rem!important;margin-bottom:.45rem!important}.side-brand b{font-size:1rem!important}.side-brand small{font-size:.74rem!important}
+.hero h1{font-size:1.9rem!important}.hero p{font-size:.98rem!important;line-height:1.5!important}.hero-kicker{font-size:.76rem!important}
+.stage-context{font-size:.84rem!important;margin:.15rem 0 .7rem!important}.stage-context strong{font-size:.76rem!important}
+.section-eyebrow{font-size:.76rem!important}.insight-card{font-size:.96rem!important;line-height:1.5!important}
+.workspace-tabs span{font-size:.9rem!important;padding:.62rem .82rem!important}
+.rpm-fit-card{border:1px solid #DCE6EC;border-radius:14px;background:#fff;padding:.95rem 1rem;margin:.55rem 0;box-shadow:0 2px 8px rgba(15,39,68,.035)}
+.rpm-fit-card-top{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:.55rem}.rpm-fit-name{font-size:1.08rem;font-weight:800;color:#102A43}.rpm-fit-meta{font-size:.82rem;color:#64748B;margin-top:.12rem}.rpm-fit-reason{font-size:.93rem;line-height:1.48;color:#334155;background:#F8FAFC;border-radius:9px;padding:.65rem .75rem;margin-top:.55rem}.fit-pill{display:inline-block;border-radius:999px;padding:.28rem .58rem;font-size:.76rem;font-weight:850;white-space:nowrap}.fit-green{background:#E8F7EE;color:#176B3A}.fit-amber{background:#FFF6DB;color:#8A5A00}.fit-slate{background:#EEF2F6;color:#475467}.fit-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.45rem;margin-top:.55rem}.fit-kv{font-size:.78rem;color:#64748B}.fit-kv b{display:block;color:#172B3A;font-size:.86rem;margin-top:.08rem}
+@media(max-width:1100px){.fit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.0</small></span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.1</small></span></div>''', unsafe_allow_html=True)
     st.subheader('Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -618,7 +632,7 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.0</small></span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.1</small></span></div>''', unsafe_allow_html=True)
 st.markdown(f'''<div class="top-context"><span class="crumb">Connected Care Intelligence</span><span class="top-user">{CURRENT_USER} · {CURRENT_ROLE}</span></div>''', unsafe_allow_html=True)
 _top_search=st.text_input('Global search',placeholder='Search patients, MRN, care path, alerts, cohorts or keywords…',label_visibility='collapsed',key='global_shell_search')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
@@ -1011,11 +1025,16 @@ elif menu.startswith('4B ·'):
         if 'REVIEW / ENABLE' in str(v): return 'background-color:#FFF6DB;color:#8A5A00;font-weight:800'
         if 'NOT CURRENTLY FIT' in str(v): return 'background-color:#F2F4F7;color:#475467;font-weight:800'
         return ''
-    styled=df.style.map(_fit_style,subset=['Fit']).set_properties(subset=['Why flagged'],**{'white-space':'normal','min-width':'320px'})
-    st.dataframe(styled,hide_index=True,use_container_width=True,height=430,column_config={'Fit':st.column_config.TextColumn('RPM Fit Segment',width='medium'),'Score':st.column_config.NumberColumn('Fit Score',format='%d / 13'),'Why flagged':st.column_config.TextColumn('Why Flagged',width='large')})
-    st.caption('Status uses both color and text. The full rationale is also shown below for the selected candidate—no double-click is required.')
+    st.subheader('Transition candidates')
+    st.caption('The rationale is intentionally shown in full on each candidate card so users never need to double-click a table cell.')
+    visible_mrns=set(df['MRN'].tolist())
+    visible_candidates=[r for r in DISCHARGE_CANDIDATES if r['mrn'] in visible_mrns]
+    for rcard in visible_candidates:
+        sc=fit_score(rcard); bk=fit_bucket(rcard); wfcard=transition_state(rcard['mrn'])
+        pill='fit-green' if bk=='RPM FIT' else ('fit-amber' if bk=='REVIEW / ENABLE' else 'fit-slate')
+        st.markdown(f'''<div class="rpm-fit-card"><div class="rpm-fit-card-top"><div><div class="rpm-fit-name">{rcard['patient']}</div><div class="rpm-fit-meta">{rcard['mrn']} · {rcard['care_plan']}</div></div><span class="fit-pill {pill}">{bk}</span></div><div class="fit-grid"><div class="fit-kv">Fit score<b>{sc} / 13</b></div><div class="fit-kv">Expected discharge<b>{rcard['discharge']}</b></div><div class="fit-kv">Enrollment<b>{wfcard['enrollment_status']}</b></div><div class="fit-kv">Activation<b>{wfcard['activation_status']}</b></div></div><div class="rpm-fit-reason"><b>Why flagged</b><br>{rcard['reason']}</div></div>''',unsafe_allow_html=True)
     st.subheader('Enrollment, kit fulfillment & activation')
-    chosen=st.selectbox('Transition candidate',range(len(DISCHARGE_CANDIDATES)),format_func=lambda i:f"{DISCHARGE_CANDIDATES[i]['patient']} · {DISCHARGE_CANDIDATES[i]['mrn']} · {DISCHARGE_CANDIDATES[i]['care_plan']}")
+    chosen=st.selectbox('Select a transition candidate to work',range(len(DISCHARGE_CANDIDATES)),format_func=lambda i:f"{DISCHARGE_CANDIDATES[i]['patient']} · {DISCHARGE_CANDIDATES[i]['mrn']} · {DISCHARGE_CANDIDATES[i]['care_plan']}")
     r=DISCHARGE_CANDIDATES[chosen]; wf=transition_state(r['mrn']); score=fit_score(r); bucket=fit_bucket(r)
     with st.container(border=True):
         st.markdown('#### Why this patient was flagged')
