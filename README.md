@@ -1,15 +1,15 @@
-# Connected Care Intelligence Platform — V5.0
+# Connected Care Intelligence Platform — V5.1
 
 ## UI/UX redesign
-V5.0 applies the Connected Care Intelligence design direction: an enterprise clinical command-center foundation, a seven-stage patient journey (Identify → Enroll → Prepare → Activate → Monitor → Intervene → Learn), and contextual clinical/research intelligence. It preserves the V4.2 unified patient/research architecture and existing workflows while modernizing navigation, hierarchy, dashboard surfaces, role context, cards, and key clinical/research pages.
+V5.1 applies the Connected Care Intelligence design direction: an enterprise clinical command-center foundation, a seven-stage patient journey (Identify → Enroll → Prepare → Activate → Monitor → Intervene → Learn), and contextual clinical/research intelligence. It preserves the V4.2 unified patient/research architecture and existing workflows while modernizing navigation, hierarchy, dashboard surfaces, role context, cards, and key clinical/research pages.
 
-# RPM Connected Care AI Platform · V5.0
+# RPM Connected Care AI Platform · V5.1
 
 A 100% synthetic Streamlit portfolio prototype demonstrating end-to-end Remote Patient Monitoring (RPM), connected devices, clinical workflows, EHR integration, human-in-the-loop AI prioritization, transition-to-home operations, and longitudinal research analytics.
 
-## V5.0 — Unified Patient / Research Data Architecture
+## V5.1 — Unified Patient / Research Data Architecture
 
-V5.0 aligns the operational and research portions of the prototype around one synthetic enterprise patient ecosystem. The application no longer presents the 240-person research population as a disconnected parallel universe.
+V5.1 aligns the operational and research portions of the prototype around one synthetic enterprise patient ecosystem. The application no longer presents the 240-person research population as a disconnected parallel universe.
 
 The unified model separates **identity** from **lifecycle-specific views**:
 
@@ -23,7 +23,7 @@ This demonstrates the product principle: **one enterprise patient ecosystem, mul
 
 ## RPM Fit UX improvements
 
-V5.0 improves the transition queue with accessible status styling: RPM FIT uses green, REVIEW / ENABLE uses amber, and NOT CURRENTLY FIT uses neutral slate/gray so it is not confused with a clinical emergency. Text remains present so meaning never depends on color alone.
+V5.1 improves the transition queue with accessible status styling: RPM FIT uses green, REVIEW / ENABLE uses amber, and NOT CURRENTLY FIT uses neutral slate/gray so it is not confused with a clinical emergency. Text remains present so meaning never depends on color alone.
 
 The `Why Flagged` column is wider/wrapped, and every selected candidate has a visible **Why this patient was flagged** panel with the full rationale, Fit Segment, score, expected discharge, and the factors used in the synthetic screening workflow. Users no longer need to discover a double-click interaction to understand the rationale.
 
@@ -57,3 +57,12 @@ All people, identifiers, measurements, thresholds, outcomes, credentials, workfl
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+
+## V5.1 UI/UX correction pass
+- Fixes clipped global product header by reserving safe top spacing and reducing oversized brand typography.
+- Rebuilds sidebar alignment and typography; navigation displays clean labels without implementation numbering.
+- Adds lifecycle context to relevant pages so Identify, Enroll, Prepare, Activate, Monitor, Intervene and Learn are attached to the work being performed rather than appearing only on two pages.
+- RPM Fit & Transition explicitly highlights Identify → Enroll → Prepare → Activate.
+- Adds a clearer demo-password visibility header and a subtle visibility control.
+- Preserves V4.2 unified patient/research architecture and V5.0 workflows.
