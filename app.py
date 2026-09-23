@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
-st.set_page_config(page_title='Connected Care Intelligence Platform v6.2', page_icon='RPM', layout='wide')
+st.set_page_config(page_title='Connected Care Intelligence Platform v6.0', page_icon='RPM', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -619,21 +619,9 @@ h3{font-size:1.28rem!important;line-height:1.22!important;font-weight:780!import
 .rpm-fit-card-top{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:.55rem}.rpm-fit-name{font-size:1.08rem;font-weight:800;color:#102A43}.rpm-fit-meta{font-size:.82rem;color:#64748B;margin-top:.12rem}.rpm-fit-reason{font-size:.93rem;line-height:1.48;color:#334155;background:#F8FAFC;border-radius:9px;padding:.65rem .75rem;margin-top:.55rem}.fit-pill{display:inline-block;border-radius:999px;padding:.28rem .58rem;font-size:.76rem;font-weight:850;white-space:nowrap}.fit-green{background:#E8F7EE;color:#176B3A}.fit-amber{background:#FFF6DB;color:#8A5A00}.fit-slate{background:#EEF2F6;color:#475467}.fit-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.45rem;margin-top:.55rem}.fit-kv{font-size:.78rem;color:#64748B}.fit-kv b{display:block;color:#172B3A;font-size:.86rem;margin-top:.08rem}
 @media(max-width:1100px){.fit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-
-/* V6.2 task-first shell */
-[data-testid="stSidebar"]{width:286px!important;min-width:286px!important}
-.side-brand b{font-size:1.02rem!important}.side-brand small{font-size:.76rem!important}
-[data-testid="stSidebar"] h3{font-size:.78rem!important;letter-spacing:.12em!important;color:#9FC1D8!important}
-[data-testid="stSidebar"] .stButton>button{min-height:2.85rem!important;padding:.64rem .72rem!important;font-size:.94rem!important;font-weight:700!important}
-[data-testid="stSidebar"] .stButton>button p{font-size:.94rem!important;font-weight:700!important;line-height:1.2!important}
-.nav-category{font-size:.72rem;color:#83A7C0;margin:.55rem .55rem .15rem;font-weight:800;letter-spacing:.08em}.nav-subhint{font-size:.72rem;color:#7393AA;margin:.1rem .65rem .4rem}
-h1{font-size:2.25rem!important;line-height:1.12!important}h2{font-size:1.72rem!important;text-align:left!important}h3{font-size:1.34rem!important;text-align:left!important}
-.hero{padding:1.2rem 1.3rem!important}.hero h1{font-size:2rem!important}.hero p{font-size:1rem!important;line-height:1.5!important}.hero-kicker{font-size:.76rem!important}
-.stage-context{font-size:.94rem!important}.insight-card{font-size:.98rem!important;line-height:1.48!important}.workspace-tabs span{font-size:.92rem!important;padding:.7rem .9rem!important}
-.rpm-fit-card{padding:1.15rem 1.2rem!important}.rpm-fit-name{font-size:1.16rem!important}.rpm-fit-reason{font-size:.94rem!important;line-height:1.5!important}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.2</small></span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.1</small></span></div>''', unsafe_allow_html=True)
     st.subheader('Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -644,7 +632,7 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.2</small></span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.1</small></span></div>''', unsafe_allow_html=True)
 st.markdown(f'''<div class="top-context"><span class="crumb">Connected Care Intelligence</span><span class="top-user">{CURRENT_USER} · {CURRENT_ROLE}</span></div>''', unsafe_allow_html=True)
 _top_search=st.text_input('Global search',placeholder='Search patients, MRN, care path, alerts, cohorts or keywords…',label_visibility='collapsed',key='global_shell_search')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
@@ -734,33 +722,28 @@ if CURRENT_USER=='Admin': ai_menu.append('15A · Logins & Roles')
 if 'selected_menu' not in st.session_state:
     st.session_state.selected_menu=patient_menu[0]
 
-st.sidebar.markdown('''<div class="side-brand"><span class="side-mark"><svg viewBox="0 0 32 32" width="28" height="28"><rect width="32" height="32" rx="9" fill="#DFF8F5"/><path d="M5 17h5l2-6 4 12 3-8 2 4h6" fill="none" stroke="#087F8C" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>RPM Connected Care</b><small>Intelligence Platform</small></span></div>''',unsafe_allow_html=True)
-SIDEBAR_LABELS={'1 · Today / Care Plan':'Today / Care Plan','2 · Patient Home & Daily Check-In':'Daily Check-In','3 · Communication Center':'Messages','3A · Education Center':'Education','4 · Clinical Command Center & Action Queue':'Command Center','4A · Education & Questionnaire Library':'Education & Questionnaires','4B · RPM Fit & Transition Queue':'RPM Fit & Transition','5 · Patient 360 & Trends':'Patient 360','6 · Clinician Interventions':'Interventions','7 · Care Coordination':'Care Coordination','8 · ECG & Spirometry Documents':'Clinical Results & Documents','9 · Integration Hub / API':'Integration Hub','10 · Mock EHR':'Mock EHR','11 · Patient Identity & Duplicate Prevention':'Identity & Duplicate Review','12 · Data Lineage & Audit':'Data Lineage & Audit','13 · AI Agent Center':'AI Agent Center','14 · Care Pathway Engine':'Care Pathways','15 · Architecture & Product':'Architecture & Product','15A · Logins & Roles':'Logins & Roles','16 · Research Analytics Overview':'Research Overview','16A · Cohort Catalog':'Cohort Catalog','17 · Cohort Explorer':'Cohort Explorer','18 · Spirometry Research':'Spirometry Research','19 · 6L ECG Research':'6L ECG Research','20 · Reports & Exports':'Reports & Exports','21 · Research Analytics Guide':'Research Guide'}
-def allowed_workspace_groups(user):
-    if user=='Patient': return [('MY CARE',patient_menu)]
-    if user=='Integrations': return [('PLATFORM',integration_menu)]
-    if user=='Researcher': return [('RESEARCH',research_menu)]
-    if user in ['Clinician','Provider']: return [('CLINICAL OPERATIONS',clinical_menu),('PLATFORM',[x for x in integration_menu if x.startswith(('8 ·','10 ·','12 ·'))]),('RESEARCH',research_menu)]
-    if user=='RPM Admin': return [('PATIENT EXPERIENCE',patient_menu),('CLINICAL OPERATIONS',clinical_menu),('PLATFORM',integration_menu),('RESEARCH',research_menu),('CONFIGURATION',['14 · Care Pathway Engine','15 · Architecture & Product'])]
-    return [('PATIENT EXPERIENCE',patient_menu),('CLINICAL OPERATIONS',clinical_menu),('PLATFORM',integration_menu),('RESEARCH',research_menu),('AI & ADMIN',ai_menu)]
-groups=allowed_workspace_groups(CURRENT_USER)
-active_group=next((title for title,items in groups if st.session_state.selected_menu in items),groups[0][0])
-if 'nav_workspace' not in st.session_state or st.session_state.nav_workspace not in [g[0] for g in groups]: st.session_state.nav_workspace=active_group
-if active_group!=st.session_state.nav_workspace: st.session_state.nav_workspace=active_group
-st.sidebar.markdown('### WORKSPACES')
-for title,items in groups:
-    is_active=st.session_state.nav_workspace==title
-    if st.sidebar.button(title.title(),key='workspace_'+title,use_container_width=True,type='primary' if is_active else 'secondary'):
-        st.session_state.nav_workspace=title
-        st.session_state.selected_menu=items[0]
-        st.rerun()
-active_items=next(items for title,items in groups if title==st.session_state.nav_workspace)
-st.sidebar.markdown(f'<div class="nav-category">{st.session_state.nav_workspace}</div><div class="nav-subhint">Choose a page</div>',unsafe_allow_html=True)
-for item in active_items:
-    active=st.session_state.selected_menu==item
-    if st.sidebar.button(SIDEBAR_LABELS.get(item,item.split(' · ',1)[-1]),key='nav_'+item,use_container_width=True,type='primary' if active else 'secondary'):
-        st.session_state.selected_menu=item; st.rerun()
-st.sidebar.divider(); st.sidebar.markdown(f'<span class="role-chip">{CURRENT_ROLE}<br><span style="color:#86A5BE">Signed in as {CURRENT_USER}</span></span>',unsafe_allow_html=True)
+st.sidebar.markdown('''<div class="side-brand"><span class="side-mark"><svg viewBox="0 0 32 32" width="24" height="24"><rect width="32" height="32" rx="9" fill="#DFF8F5"/><path d="M5 17h5l2-6 4 12 3-8 2 4h6" fill="none" stroke="#087F8C" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>RPM Connected Care</b><small>Intelligence Platform</small></span></div>''',unsafe_allow_html=True)
+
+def nav_group(title, items):
+    st.sidebar.markdown(f'### {title}')
+    for item in items:
+        active=st.session_state.selected_menu==item
+        clean_label=item.split(' · ',1)[1] if ' · ' in item else item
+        label=clean_label
+        if st.sidebar.button(label,key='nav_'+item,use_container_width=True,type='primary' if active else 'secondary'):
+            st.session_state.selected_menu=item
+            st.rerun()
+
+if CURRENT_USER=='Patient': nav_group('PATIENT EXPERIENCE',patient_menu)
+elif CURRENT_USER=='Integrations': nav_group('PLATFORM & INTEGRATION',integration_menu)
+elif CURRENT_USER=='Researcher': nav_group('RESEARCH ANALYTICS',research_menu)
+elif CURRENT_USER in ['Clinician','Provider']:
+    nav_group('CONNECTED CARE',clinical_menu); nav_group('PLATFORM & INTEGRATION',[x for x in integration_menu if x.startswith(('8 ·','10 ·','12 ·'))]); nav_group('RESEARCH ANALYTICS',research_menu)
+elif CURRENT_USER=='RPM Admin':
+    nav_group('PATIENT EXPERIENCE',patient_menu); nav_group('CONNECTED CARE',clinical_menu); nav_group('PLATFORM & INTEGRATION',integration_menu); nav_group('AI & CONFIGURATION',['14 · Care Pathway Engine','15 · Architecture & Product']); nav_group('RESEARCH ANALYTICS',research_menu)
+else:
+    nav_group('PATIENT EXPERIENCE',patient_menu); nav_group('CONNECTED CARE',clinical_menu); nav_group('PLATFORM & INTEGRATION',integration_menu); nav_group('AI & CONFIGURATION',ai_menu); nav_group('RESEARCH ANALYTICS',research_menu)
+st.sidebar.divider(); st.sidebar.markdown(f'<span class="role-chip">Signed in as: {CURRENT_USER}<br>{CURRENT_ROLE}</span>',unsafe_allow_html=True)
 if st.sidebar.button('Sign out',use_container_width=True): st.session_state.auth_user=None; st.rerun()
 menu=st.session_state.selected_menu
 
@@ -1027,7 +1010,7 @@ elif menu.startswith('4A ·'):
             st.session_state.questionnaire_assignments.append({'assignment_id':f'Q-{len(st.session_state.questionnaire_assignments)+1:03d}','patient_id':pid,'plan':plan,'assigned_by':PATIENTS[pid]['clinician'],'assigned_at':datetime.now().isoformat(),'completed':False}); st.success('Ad-hoc questionnaire sent to patient.')
 
 elif menu.startswith('4B ·'):
-    page_hero('TRANSITION WORKFLOW','RPM Fit, Enrollment & Kit Transition','Identify appropriate discharge candidates, complete human eligibility review, configure the care-path kit, and move safely toward activation.')
+    st.header('RPM Fit, Enrollment & Kit Transition')
     st.caption('Synthetic discharge-candidate workflow: identify potential RPM fit, complete human enrollment review, configure only the devices required by the selected care path, fulfill the kit, and activate monitoring.')
     st.info('A high Fit Score never auto-enrolls a patient. Clinical stability, medical necessity, consent, device/digital readiness and human confirmation remain required.')
     rows=[]
@@ -1093,7 +1076,7 @@ elif menu.startswith('5 ·'):
             st.session_state['patient360_opened_from_population']=False
             st.rerun()
         nav_right.caption('Opened from Clinical Command Center · use Back to return to your filtered patient queue.')
-    page_hero('CONNECTED CARE','Patient 360 & Trends','Review the patient’s longitudinal monitoring story, device readiness, symptoms, results and configured alert boundaries in one workspace.')
+    st.header('Patient 360 & Trends')
     st.caption('Trend interpretation: baseline = patient’s recent typical range; threshold = clinician-configured alert boundary; current reading = actual measurement. Teal dashed lines are thresholds, purple points are manual entries, and red points are out-of-threshold readings.')
     pid=patient_picker('Patient','trends_patient'); p=PATIENTS[pid]
     st.info(f"Care plan: {p['care_plan']} | Program duration: {p.get('program_duration','Ongoing / clinician-defined')} | Next review: {p.get('next_review_date','Clinician-defined')}"); e=latest_for(pid)
@@ -1348,7 +1331,7 @@ elif menu.startswith('14 ·'):
 elif menu.startswith('15 ·'):
     page_hero('PRODUCT STORY','Architecture & Product Story','One enterprise patient ecosystem, multiple lifecycle-specific experiences, and a governed research layer.')
     journey_strip('Learn')
-    st.info('V6.2 uses a unified synthetic enterprise patient model. Lifecycle status determines whether a person appears in transition, active monitoring, historical EHR, or research views. Research analytics is derived from governed longitudinal data and uses de-identified Research Participant IDs by default.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
+    st.info('V6.0 uses a unified synthetic enterprise patient model. Lifecycle status determines whether a person appears in transition, active monitoring, historical EHR, or research views. Research analytics is derived from governed longitudinal data and uses de-identified Research Participant IDs by default.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
   RPM Fit Screening → Human Eligibility Review → Consent / Care Path Selection
                     │
                     ▼
@@ -1514,7 +1497,7 @@ Outcome improvement requires a valid study design; a dashboard trend alone canno
 Safety metrics should trigger human review and quality improvement; they are not autonomous treatment rules.''')
     st.subheader('From research signal to better care')
     st.code('''Reliable longitudinal data → reproducible cohort → descriptive analysis → hypothesis → clinical/research review → approved study / validation → evidence → governed pathway change → prospective monitoring of benefit + safety''')
-    st.warning('All V6.2 research participants, measurements, associations, thresholds and outcomes are synthetic. The center demonstrates product and analytics design, not validated clinical evidence.')
+    st.warning('All V6.0 research participants, measurements, associations, thresholds and outcomes are synthetic. The center demonstrates product and analytics design, not validated clinical evidence.')
 
 elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
     st.header('Logins & Roles')
@@ -1530,7 +1513,7 @@ elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
 
 elif menu.startswith('11 ·'):
     st.header('Patient Identity & Duplicate Prevention')
-    st.write('V6.2 uses one shared synthetic enterprise patient registry. Operational, transition, EHR and research workspaces are lifecycle-specific views of that registry—not separate patient universes. Research views use a governed Research Participant ID and suppress operational MRN/name by default.')
+    st.write('V6.0 uses one shared synthetic enterprise patient registry. Operational, transition, EHR and research workspaces are lifecycle-specific views of that registry—not separate patient universes. Research views use a governed Research Participant ID and suppress operational MRN/name by default.')
     st.subheader('Demo matching logic')
     st.markdown('''**1. Exact/high-confidence match:** normalized legal name + date of birth + phone → creation is blocked and the existing MRN is returned.  
 **2. Possible match:** normalized legal name + date of birth → creation is blocked for identity review.  
