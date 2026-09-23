@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v4.0', page_icon='RPM', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v4.2', page_icon='RPM', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -26,6 +26,37 @@ if 'patients' not in st.session_state:
         _p.update({'address':'100 Demo Way','city':'Austin','state':'TX','zip':'78701','phone':f'512-555-{1000+int(_pid[-1]):04d}','email':'','insurance':'Demo Health Plan','member_id':f'DEMO-{_pid[-4:]}','next_of_kin':'Synthetic Family Contact','nok_relationship':'Family','nok_phone':'512-555-0199'})
     st.session_state.patients = PATIENTS
 PATIENTS = st.session_state.patients
+
+# V4.2 unified enterprise registry. Research participants are linked to operational
+# patient records through a governed Research Participant ID, while research views
+# intentionally suppress MRN/name. Lifecycle status determines which operational
+# workspace shows a person; the Command Center is not the enterprise registry.
+def seed_unified_enterprise_registry():
+    if st.session_state.get('v42_registry_seeded'): return
+    first_names=['Amina','Benjamin','Camila','David','Elise','Farah','Gabriel','Hannah','Isaac','Jasmine','Kai','Leila','Mateo','Nora','Owen','Priya','Quinn','Rafael','Sofia','Theo','Uma','Victor','Willa','Xavier','Yara','Zane']
+    last_names=['Adams','Bennett','Carter','Diaz','Evans','Foster','Green','Hughes','Ibrahim','Jones','Kim','Lopez','Morgan','Nguyen','Owens','Patel','Reed','Singh','Turner','Usman','Vega','Walker','Xu','Young','Zimmerman']
+    plans=['Lung Transplant','COPD / Pulmonary','Pulmonary Home Rehab','Pneumonitis','Respiratory Infection - Adult','Cardiology','Heart Failure','Coronary Artery Disease (CAD)','Hypertension','Diabetes / CGM','Chronic Kidney Disease','Post-Surgical Recovery']
+    for i in range(1,241):
+        pid=f'ENT-{i:04d}'
+        if pid in PATIENTS: continue
+        plan=plans[(i-1)%len(plans)]
+        lifecycle='Active Monitoring' if i<=80 else 'Completed RPM Episode'
+        year=1945+(i*3)%50; month=1+(i%12); day=1+(i%27)
+        PATIENTS[pid]={
+            'name':f'{first_names[(i-1)%len(first_names)]} {last_names[(i*7)%len(last_names)]}',
+            'clinician':['Dr. John Doe','Dr. Aisha Morgan','Dr. Samuel Lee','Dr. Elena Rivera'][i%4],
+            'mrn':f'SYN-MRN-{3000+i:04d}','dob':f'{year:04d}-{month:02d}-{day:02d}','care_plan':plan,
+            'baseline_spo2':94+(i%5),'baseline_weight':145+(i%65),'baseline_hr':62+(i%25),
+            'address':f'{100+i} Synthetic Care Way','city':'Austin','state':'TX','zip':'78701',
+            'phone':f'512-555-{3000+i:04d}'[-12:],'email':'','insurance':'Demo Health Plan','member_id':f'DEMO-R-{i:04d}',
+            'next_of_kin':'Synthetic Family Contact','nok_relationship':'Family','nok_phone':'512-555-0199',
+            'program_duration':'90 days','next_review_date':'Synthetic','lifecycle_status':lifecycle,
+            'research_id':f'RSP-{i:04d}','research_eligible':True,'registry_source':'Unified Enterprise Registry'
+        }
+    # Legacy demonstration patients remain active operational records.
+    for p in PATIENTS.values(): p.setdefault('lifecycle_status','Active Monitoring')
+    st.session_state.v42_registry_seeded=True
+seed_unified_enterprise_registry()
 
 CARE_PLANS=['Cardiology','Cirrhosis / Liver Disease','Hypertension','Diabetes / CGM','Heart Failure','COPD / Pulmonary','Chronic Kidney Disease','Post-Surgical Recovery','CAR-T','Acute Kidney Injury (AKI)','Joint / Knee Replacement','Pneumonitis','Pancreatectomy','Neutropenic Fever','Coronary Artery Disease (CAD)','Lung Transplant','Respiratory Infection - Pediatric','Respiratory Infection - Adult','Pulmonary Home Rehab']
 CLINICIANS=['Dr. John Doe','Dr. Aisha Morgan','Dr. Samuel Lee','Dr. Elena Rivera']
@@ -460,6 +491,14 @@ DISCHARGE_CANDIDATES=[
  {'patient':'Mia Anderson','mrn':'ACUTE-2009','care_plan':'Respiratory Infection - Adult','discharge':'Tomorrow','condition_fit':2,'measurable':2,'transition_risk':1,'management_need':1,'willing':1,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Short-term oxygen/temperature/symptom monitoring may support recovery.'},
  {'patient':'Lucas Thomas','mrn':'ACUTE-2010','care_plan':'Coronary Artery Disease (CAD)','discharge':'2 days','condition_fit':3,'measurable':2,'transition_risk':2,'management_need':2,'willing':0,'support':1,'connectivity':1,'team_capacity':1,'hard_stop':False,'reason':'Clinical fit exists, but patient has not consented to RPM.'}
 ]
+# V4.2: transition candidates are also enterprise-registry patients. They are visible in MPI/Mock EHR,
+# but remain out of the active Command Center until human enrollment/activation progresses.
+for _i,_r in enumerate(DISCHARGE_CANDIDATES,1):
+    _pid=f'ACUTE-{2000+_i}'
+    if _pid not in PATIENTS:
+        PATIENTS[_pid]={'name':_r['patient'],'clinician':'Dr. Aisha Morgan','mrn':_r['mrn'],'dob':'1965-01-01','care_plan':_r['care_plan'],'baseline_spo2':97,'baseline_weight':170.0,'baseline_hr':74,'address':'200 Transition Home Way','city':'Austin','state':'TX','zip':'78701','phone':f'512-555-{2200+_i:04d}','email':'','insurance':'Demo Health Plan','member_id':f'DEMO-ACUTE-{_i:03d}','next_of_kin':'Synthetic Family Contact','nok_relationship':'Family','nok_phone':'512-555-0199','program_duration':'Not enrolled','next_review_date':'Pending eligibility review','lifecycle_status':'RPM Candidate','research_eligible':False,'registry_source':'Acute Care / Discharge Planning'}
+        st.session_state.thresholds[_pid]=default_thresholds(PATIENTS[_pid]) if 'default_thresholds' in globals() else {'spo2_min':92,'spo2_max':100,'hr_min':50,'hr_max':110,'weight_min':165,'weight_max':175,'sys_min':90,'sys_max':160,'dia_min':50,'dia_max':100,'rr_min':10,'rr_max':24,'temp_min':34.0,'temp_max':38.0,'glucose_min':70,'glucose_max':180,'fev1_pct_min':80}
+        st.session_state.devices[_pid]=[]
 # Care-path-specific demo kit configuration. These are portfolio defaults, not universal clinical requirements.
 KIT_MATRIX={
  'Heart Failure':['Connected scale','Blood pressure monitor','Pulse oximeter','RPM tablet / gateway'],
@@ -522,7 +561,7 @@ div[data-testid="stSelectbox"] label p{font-size:.78rem!important;font-weight:65
 .role-chip{font-size:.88rem;font-weight:600}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.1</span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.2</span></div>''', unsafe_allow_html=True)
     st.subheader('🔐 Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -533,7 +572,7 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.1</span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v4.2</span></div>''', unsafe_allow_html=True)
 st.caption(f'Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data • Signed in as {CURRENT_USER} ({CURRENT_ROLE})')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 
@@ -545,19 +584,19 @@ def build_research_data(n_participants=240, days=90):
         'COPD / Pulmonary':'COPD Remote Pulmonary Monitoring',
         'Pulmonary Home Rehab':'Pulmonary Home Rehabilitation',
         'Pneumonitis':'Pneumonitis Recovery Monitoring',
-        'Adult Respiratory Infection':'Post-Respiratory Infection Recovery',
+        'Respiratory Infection - Adult':'Post-Respiratory Infection Recovery',
         'Cardiology':'Cardiac Rhythm / 6L ECG',
         'Heart Failure':'Heart Failure Post-Discharge',
         'Coronary Artery Disease (CAD)':'CAD / Cardiac Recovery',
         'Hypertension':'Hypertension Monitoring',
         'Diabetes / CGM':'Diabetes / CGM Monitoring',
-        'CKD':'CKD / AKI Transition Monitoring',
+        'Chronic Kidney Disease':'CKD / AKI Transition Monitoring',
         'Post-Surgical Recovery':'Post-Surgical Recovery'
     }
     plans=list(cohort_map)
     rows=[]
     for i in range(1,n_participants+1):
-        rid=f'RSP-{i:04d}'; plan=plans[(i-1)%len(plans)]; age=28+(i*7)%58; cohort=cohort_map[plan]
+        rid=f'RSP-{i:04d}'; operational_pid=f'ENT-{i:04d}'; plan=plans[(i-1)%len(plans)]; age=28+(i*7)%58; cohort=cohort_map[plan]
         base_fev1=round(1.5+(i%24)*0.075,2); base_spo2=94+(i%5); base_hr=62+(i%25); adherence=max(0.48,min(.99,.72+(i%20)/100+rng.uniform(-.08,.08)))
         trajectory=['Stable','Improving','Declining','Intermittent'][i%4]
         for d in range(0,days,3):
@@ -580,7 +619,7 @@ def build_research_data(n_participants=240, days=90):
             diastolic=round(70+(i%14)+rng.uniform(-5,5)) if systolic else None
             weight=round(145+(i%65)+rng.uniform(-2.5,2.5),1) if plan in ['Heart Failure','CKD','Post-Surgical Recovery'] else None
             glucose=round(95+(i%55)+rng.uniform(-15,20)) if plan=='Diabetes / CGM' else None
-            rows.append({'Research Participant ID':rid,'Care Path':plan,'Cohort':cohort,'Age Band':f'{(age//10)*10}s','Study Day':d+1,'Observation Date':date,'Trajectory':trajectory,'SpO2':spo2,'Heart Rate':hr,'Systolic BP':systolic,'Diastolic BP':diastolic,'Weight lb':weight,'Glucose mg/dL':glucose,'FEV1 L':fev1,'FVC L':fvc,'FEV1/FVC %':ratio,'PEF L/min':pef,'FEV1 % Personal Baseline':round(100*fev1/base_fev1,1) if fev1 else None,'Spirometry Quality':quality,'ECG Device Classification':ecg,'Symptom Burden (0-5)':symptoms,'Alert':alert,'Intervention':intervention,'Outcome':outcome,'Data Source':'Synthetic RPM research cohort'})
+            rows.append({'Research Participant ID':rid,'Operational Link':operational_pid,'Care Path':plan,'Cohort':cohort,'Age Band':f'{(age//10)*10}s','Study Day':d+1,'Observation Date':date,'Trajectory':trajectory,'SpO2':spo2,'Heart Rate':hr,'Systolic BP':systolic,'Diastolic BP':diastolic,'Weight lb':weight,'Glucose mg/dL':glucose,'FEV1 L':fev1,'FVC L':fvc,'FEV1/FVC %':ratio,'PEF L/min':pef,'FEV1 % Personal Baseline':round(100*fev1/base_fev1,1) if fev1 else None,'Spirometry Quality':quality,'ECG Device Classification':ecg,'Symptom Burden (0-5)':symptoms,'Alert':alert,'Intervention':intervention,'Outcome':outcome,'Data Source':'Synthetic RPM research cohort'})
     return pd.DataFrame(rows)
 
 def research_df(): return build_research_data()
@@ -739,6 +778,7 @@ elif menu.startswith('4 ·'):
     st.caption('A work-management view that separates clinical, engagement, and technical exceptions and shows the next operational action.')
     aq=[]
     for _pid,_p in PATIENTS.items():
+        if _p.get('lifecycle_status','Active Monitoring') != 'Active Monitoring': continue
         _e=latest_for(_pid)
         if _e:
             _pri,_reasons,_=assess(_e); _unread=sum(1 for m in st.session_state.messages if m['patient_id']==_pid and m['sender']=='Patient' and not m.get('read',False)); _bad=[d for d in st.session_state.devices.get(_pid,[]) if not d.get('connected') or not d.get('wifi') or d.get('battery',100)<25]
@@ -767,6 +807,7 @@ elif menu.startswith('4 ·'):
         patient_creation_panel('Clinical Dashboard','clinical')
     rows=[]
     for pid,p in PATIENTS.items():
+        if p.get('lifecycle_status','Active Monitoring') != 'Active Monitoring': continue
         e=latest_for(pid); devs=st.session_state.devices.get(pid,[]); problems=sum((not d['connected']) or (not d['wifi']) or d['battery']<30 for d in devs); unread=sum(m['patient_id']==pid and m['sender']=='Patient' and not m.get('read',False) for m in st.session_state.messages); new_samples=sum(m['patient_id']==pid and not m.get('reviewed',False) for m in st.session_state.patient_samples)
         if e: pri,_,_=assess(e); spo=e['spo2']; hr=e['ecg_hr']; ast=alert_status(e)
         else: pri='AWAITING DATA'; spo='—'; hr='—'; ast='No RPM reading yet'
@@ -854,10 +895,22 @@ elif menu.startswith('4B ·'):
     df=pd.DataFrame(rows); q=st.text_input('Search transition queue',placeholder='Patient, MRN, care plan, status, discharge timing…')
     if q: df=df[df.astype(str).apply(lambda x:x.str.contains(q,case=False,na=False)).any(axis=1)]
     order={'● RPM FIT':0,'● REVIEW / ENABLE':1,'● NOT CURRENTLY FIT':2}; df['_order']=df['Fit'].map(order); df=df.sort_values(['_order','Score'],ascending=[True,False]).drop(columns='_order')
-    st.dataframe(df,hide_index=True,use_container_width=True,column_config={'Fit':st.column_config.TextColumn('RPM Fit Segment'),'Score':st.column_config.NumberColumn('Fit Score',format='%d / 13')})
+    def _fit_style(v):
+        if 'RPM FIT' in str(v) and 'NOT' not in str(v): return 'background-color:#E8F7EE;color:#176B3A;font-weight:800'
+        if 'REVIEW / ENABLE' in str(v): return 'background-color:#FFF6DB;color:#8A5A00;font-weight:800'
+        if 'NOT CURRENTLY FIT' in str(v): return 'background-color:#F2F4F7;color:#475467;font-weight:800'
+        return ''
+    styled=df.style.map(_fit_style,subset=['Fit']).set_properties(subset=['Why flagged'],**{'white-space':'normal','min-width':'320px'})
+    st.dataframe(styled,hide_index=True,use_container_width=True,height=430,column_config={'Fit':st.column_config.TextColumn('RPM Fit Segment',width='medium'),'Score':st.column_config.NumberColumn('Fit Score',format='%d / 13'),'Why flagged':st.column_config.TextColumn('Why Flagged',width='large')})
+    st.caption('Status uses both color and text. The full rationale is also shown below for the selected candidate—no double-click is required.')
     st.subheader('Enrollment, kit fulfillment & activation')
     chosen=st.selectbox('Transition candidate',range(len(DISCHARGE_CANDIDATES)),format_func=lambda i:f"{DISCHARGE_CANDIDATES[i]['patient']} · {DISCHARGE_CANDIDATES[i]['mrn']} · {DISCHARGE_CANDIDATES[i]['care_plan']}")
     r=DISCHARGE_CANDIDATES[chosen]; wf=transition_state(r['mrn']); score=fit_score(r); bucket=fit_bucket(r)
+    with st.container(border=True):
+        st.markdown('#### Why this patient was flagged')
+        st.write(r['reason'])
+        c1,c2,c3=st.columns(3); c1.metric('RPM Fit Segment',bucket); c2.metric('Fit Score',f'{score} / 13'); c3.metric('Expected discharge',r['discharge'])
+        st.caption('Fit factors: condition fit · measurable physiologic signal · transition need · active management need · willingness/consent · support · connectivity/device readiness · RPM-team capacity. Human review remains required.')
     a,b,c,d=st.columns(4); a.metric('Fit segment',bucket); b.metric('Fit score',f'{score}/13'); c.metric('Discharge',r['discharge']); d.metric('Enrollment',wf['enrollment_status'])
     st.markdown('#### Care-path kit configuration')
     st.caption('Portfolio defaults are configurable. ECG and spirometry are included only when appropriate to the selected pathway/order—not in every RPM kit.')
@@ -1086,7 +1139,13 @@ elif menu.startswith('10 ·'):
     st.header('Mock EHR');
     with st.expander('➕ Create Patient / Add New Patient'):
         patient_creation_panel('Mock EHR','ehr')
-    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); es=patient_events(pid); t1,t2,t3=st.tabs(['Flowsheets','Media','Care-team communications'])
+    reg=pd.DataFrame([{'Patient':p['name'],'MRN':p['mrn'],'Lifecycle':p.get('lifecycle_status','Active Monitoring'),'Care Plan':p['care_plan'],'Research Link':p.get('research_id','—')} for p in PATIENTS.values()])
+    a,b,c=st.columns(3); a.metric('Enterprise registry',f'{len(reg):,}'); b.metric('Active RPM',f"{(reg['Lifecycle']=='Active Monitoring').sum():,}"); c.metric('Research-linked',f"{(reg['Research Link']!='—').sum():,}")
+    with st.expander('Browse enterprise patient registry',expanded=False):
+        rq=st.text_input('Search enterprise registry',key='ehr_registry_search',placeholder='Patient, MRN, lifecycle, care plan…'); view=reg
+        if rq: view=view[view.astype(str).apply(lambda r:r.str.contains(rq,case=False,na=False).any(),axis=1)]
+        st.dataframe(view,hide_index=True,use_container_width=True,height=360)
+    pid=patient_picker('Open patient record','ehr_patient','Search enterprise patient by name, MRN, care plan, or clinician'); es=patient_events(pid); t1,t2,t3=st.tabs(['Flowsheets','Media','Care-team communications'])
     with t1: st.dataframe(pd.DataFrame([{'Date/Time':e['timestamp'][:16].replace('T',' '),'SpO₂':e['spo2'],'Heart Rate':e['ecg_hr'],'Weight':e['weight'],'BP':f"{e['sys']}/{e['dia']}",'ECG device result':e['ecg'],'FEV1 (L)':e.get('fev1'),'FVC (L)':e.get('fvc'),'FEV1/FVC %':round(e.get('fev1_fvc'),1) if e.get('fev1_fvc') else None,'PEF L/min':e.get('pef')} for e in es]),hide_index=True,use_container_width=True)
     with t2:
         st.subheader('RPM Documents & Patient Samples')
@@ -1139,7 +1198,7 @@ elif menu.startswith('14 ·'):
     st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
 
 elif menu.startswith('15 ·'):
-    st.header('Architecture & Product Story'); st.info('V4.0 is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
+    st.header('Architecture & Product Story'); st.info('V4.2 uses a unified synthetic enterprise patient model. Lifecycle status determines whether a person appears in transition, active monitoring, historical EHR, or research views. Research analytics is derived from governed longitudinal data and uses de-identified Research Participant IDs by default.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
   RPM Fit Screening → Human Eligibility Review → Consent / Care Path Selection
                     │
                     ▼
@@ -1148,7 +1207,26 @@ elif menu.startswith('15 ·'):
                     │
                     ▼
              ACTIVE RPM MONITORING
-  KardiaMobile 6L (when ordered) + Spirometry (pulmonary paths) + Vitals + CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Fit → Enrollment → Kit → Activation → Monitoring → Alert → Human review → Call/Chat → Outcome → EHR → Audit trail''')
+  KardiaMobile 6L (when ordered) + Spirometry (pulmonary paths) + Vitals + CGM + Questionnaire\n                    │ Bluetooth\n                    ▼\n              Patient Tablet\n                    │\n                    ▼\n             Vendor RPM Cloud\n          ┌─────────┴─────────┐\n          ▼                   ▼\n Clinical Dashboard        ECG PDF\n          │                   │\n          ▼                   ▼\n AI Alert / Trend Layer   Document Validation\n          │                   │\n          ▼                   ▼\n Clinician Outreach      Cloverleaf → OnBase\n          │                   │\n          ▼                   ▼\n RPM Integration API     Mock EHR Media\n          │\n          ▼\n FHIR/LOINC Mapping → Mock EHR Flowsheet\n\nCLOSED LOOP: Fit → Enrollment → Kit → Activation → Monitoring → Alert → Human review → Call/Chat → Outcome → EHR → Audit trail
+
+UNIFIED DATA & RESEARCH ARCHITECTURE
+Enterprise Patient Registry / MPI
+  ├─ Candidate lifecycle → RPM Fit / Transition Queue
+  ├─ Active Monitoring lifecycle → Clinical Command Center / Patient 360
+  ├─ Completed lifecycle → longitudinal EHR / historical record
+  └─ Governed research eligibility
+          ↓
+     De-identification / pseudonymization
+          ↓
+ Research Participant ID (MRN/name suppressed by default)
+          ↓
+ Longitudinal Research Dataset → Cohorts → Data Quality → Analysis → Reports
+          ↓
+ Hypothesis → clinical/research review → prospective validation
+          ↓
+ Governed care-path improvement + ongoing outcome/safety monitoring
+
+KEY PRINCIPLE: one enterprise patient ecosystem, multiple role- and lifecycle-specific views. Operational MRN ≠ Research Participant ID.''')
     st.write('**MVP epics:** validated patient registration + MPI duplicate prevention · care-plan enrollment duration/review · care-plan-specific daily + ad-hoc questionnaires · bite-sized patient education completion · patient-generated audio/image samples · home spirometry + PDF · timestamped device ingestion · longitudinal trends · clinical command center · AI workflow prioritization · clinician intervention · ECG document integrity · EHR transformation · lineage/audit.')
     st.write('**Guardrails:** synthetic data only; no autonomous diagnosis; device classifications treated as source inputs; failed documents held; clinician remains decision-maker.')
     st.write('**KPIs:** alert precision, time-to-review, time-to-patient-contact, intervention completion, false-positive rate, data completeness, document validation pass rate, EHR delivery success, clinician override rate.')
@@ -1157,7 +1235,7 @@ elif menu.startswith('15 ·'):
 
 elif menu.startswith('16 ·'):
     st.header('Research Analytics Center')
-    st.info('A de-identified, synthetic research workspace that connects longitudinal RPM measurements, symptoms, adherence, alerts, interventions and outcomes. It supports hypothesis generation and operational learning—not diagnosis, treatment, or causal claims.')
+    st.info('V4.2 research records are derived from the same unified synthetic enterprise population. Operational identity is linked internally for traceability, while this workspace exposes Research Participant IDs by default. A de-identified, synthetic research workspace that connects longitudinal RPM measurements, symptoms, adherence, alerts, interventions and outcomes. It supports hypothesis generation and operational learning—not diagnosis, treatment, or causal claims.')
     df=research_df(); parts=df['Research Participant ID'].nunique(); obs=len(df); spi=df['FEV1 L'].notna().sum(); ecg=df['ECG Device Classification'].notna().sum(); alerts=int(df['Alert'].sum())
     cohort_n=df['Cohort'].nunique(); cols=st.columns(6); cols[0].metric('Participants',f'{parts:,}'); cols[1].metric('Research cohorts',f'{cohort_n:,}'); cols[2].metric('Observations',f'{obs:,}'); cols[3].metric('Spirometry sessions',f'{spi:,}'); cols[4].metric('6L ECG recordings',f'{ecg:,}'); cols[5].metric('Flagged observations',f'{alerts:,}')
     st.subheader('Research population at a glance')
@@ -1286,7 +1364,7 @@ Outcome improvement requires a valid study design; a dashboard trend alone canno
 Safety metrics should trigger human review and quality improvement; they are not autonomous treatment rules.''')
     st.subheader('From research signal to better care')
     st.code('''Reliable longitudinal data → reproducible cohort → descriptive analysis → hypothesis → clinical/research review → approved study / validation → evidence → governed pathway change → prospective monitoring of benefit + safety''')
-    st.warning('All V4.0 research participants, measurements, associations, thresholds and outcomes are synthetic. The center demonstrates product and analytics design, not validated clinical evidence.')
+    st.warning('All V4.2 research participants, measurements, associations, thresholds and outcomes are synthetic. The center demonstrates product and analytics design, not validated clinical evidence.')
 
 elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
     st.header('Logins & Roles')
@@ -1302,7 +1380,7 @@ elif menu.startswith('15A ·') and CURRENT_USER=='Admin':
 
 elif menu.startswith('11 ·'):
     st.header('Patient Identity & Duplicate Prevention')
-    st.write('Both the Clinical Dashboard and Mock EHR creation buttons call the same shared Master Patient Index (MPI) service in this prototype. That means there is one patient registry, not two independent patient lists.')
+    st.write('V4.2 uses one shared synthetic enterprise patient registry. Operational, transition, EHR and research workspaces are lifecycle-specific views of that registry—not separate patient universes. Research views use a governed Research Participant ID and suppress operational MRN/name by default.')
     st.subheader('Demo matching logic')
     st.markdown('''**1. Exact/high-confidence match:** normalized legal name + date of birth + phone → creation is blocked and the existing MRN is returned.  
 **2. Possible match:** normalized legal name + date of birth → creation is blocked for identity review.  
@@ -1310,4 +1388,4 @@ elif menu.startswith('11 ·'):
 **4. Source is audited:** the audit trail records whether creation started from the Clinical Dashboard or Mock EHR.''')
     st.info('Production systems typically use an Enterprise Master Patient Index (EMPI/MPI), stronger identity attributes, configurable matching rules, role-based access, merge/unmerge governance, and human review for ambiguous matches. This portfolio prototype intentionally uses a simple deterministic rule.')
     st.subheader('Shared patient registry')
-    st.dataframe(pd.DataFrame([{'Patient':p['name'],'MRN':p['mrn'],'DOB':p['dob'],'Phone':p.get('phone',''),'Care Plan':p['care_plan'],'Assigned clinician':p['clinician']} for p in PATIENTS.values()]),hide_index=True,use_container_width=True)
+    st.dataframe(pd.DataFrame([{'Patient':p['name'],'MRN':p['mrn'],'DOB':p['dob'],'Phone':p.get('phone',''),'Lifecycle':p.get('lifecycle_status','Active Monitoring'),'Care Plan':p['care_plan'],'Assigned clinician':p['clinician'],'Research Participant ID':p.get('research_id','—')} for p in PATIENTS.values()]),hide_index=True,use_container_width=True)
