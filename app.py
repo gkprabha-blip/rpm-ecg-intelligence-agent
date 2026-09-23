@@ -111,6 +111,18 @@ def find_duplicate(first,last,dob,phone):
         elif pname==name and pdob==str(dob): possible.append(pid)
     return exact,possible
 
+def default_thresholds(p):
+    base_weight=float(p.get('baseline_weight',170.0))
+    return {'spo2_min':92,'spo2_max':100,'hr_min':50,'hr_max':110,'weight_min':base_weight-5,'weight_max':base_weight+5,'sys_min':90,'sys_max':160,'dia_min':50,'dia_max':100,'rr_min':10,'rr_max':24,'temp_min':34.0,'temp_max':38.0,'glucose_min':70,'glucose_max':180,'fev1_pct_min':80}
+
+def ensure_patient_runtime(pid):
+    # Patients can be added to the unified registry after a Streamlit session starts.
+    # Keep per-patient runtime state synchronized so AI/clinical pages never fail on a missing key.
+    if pid not in st.session_state.thresholds:
+        st.session_state.thresholds[pid]=default_thresholds(PATIENTS[pid])
+    if pid not in st.session_state.devices:
+        setup_new_patient(pid)
+
 def setup_new_patient(pid):
     p=PATIENTS[pid]
     st.session_state.thresholds[pid]={'spo2_min':92,'spo2_max':100,'hr_min':50,'hr_max':110,'weight_min':80.0,'weight_max':350.0,'sys_min':90,'sys_max':160,'dia_min':50,'dia_max':100,'rr_min':10,'rr_max':24,'temp_min':34.0,'temp_max':38.0,'glucose_min':70,'glucose_max':180,'fev1_pct_min':80}
@@ -235,7 +247,7 @@ def latest_for(pid):
     es=patient_events(pid); return es[-1] if es else None
 
 def assess(e):
-    p=PATIENTS[e['patient_id']]; t=st.session_state.thresholds[e['patient_id']]; reasons=[]; score=0
+    p=PATIENTS[e['patient_id']]; st.session_state.thresholds.setdefault(e['patient_id'],default_thresholds(p)); t=st.session_state.thresholds[e['patient_id']]; reasons=[]; score=0
     if e['ecg']!='Normal Sinus Rhythm': reasons.append(f"Device-reported ECG classification: {e['ecg']}"); score += 3 if e['ecg']=='Atrial Fibrillation' else 2
     if e['spo2'] < t['spo2_min'] or e['spo2'] > t['spo2_max']: reasons.append(f"SpO₂ {e['spo2']}% outside patient threshold {t['spo2_min']}–{t['spo2_max']}%"); score+=2
     if e['ecg_hr'] < t['hr_min'] or e['ecg_hr'] > t['hr_max']: reasons.append(f"Heart rate {e['ecg_hr']} bpm outside patient threshold {t['hr_min']}–{t['hr_max']}"); score+=2
@@ -650,7 +662,7 @@ h2{font-size:1.7rem!important}h3{font-size:1.34rem!important}
 @media(max-width:1000px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.research-grid{grid-template-columns:1fr}.patient-banner{align-items:flex-start;flex-direction:column}.patient-tags{justify-content:flex-start}}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.4</small></span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.5</small></span></div>''', unsafe_allow_html=True)
     st.subheader('Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -661,7 +673,7 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.4</small></span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>Connected Care Intelligence Platform <small>v6.5</small></span></div>''', unsafe_allow_html=True)
 st.markdown(f'''<div class="top-context"><span class="crumb">Connected Care Intelligence</span><span class="top-user">{CURRENT_USER} · {CURRENT_ROLE}</span></div>''', unsafe_allow_html=True)
 _top_search=st.text_input('Global search',placeholder='Search patients, MRN, care path, alerts, cohorts or keywords…',label_visibility='collapsed',key='global_shell_search')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
@@ -732,9 +744,16 @@ def export_bar(df,prefix):
     st.caption('CSV and Excel files can be imported directly into Google Sheets. Direct Google Workspace write-back would require authenticated OAuth/API integration and is not simulated here.')
 
 def research_filters(df,key):
-    a,b,c=st.columns(3); plans=a.multiselect('Care paths',sorted(df['Care Path'].unique()),key=key+'p'); cohorts=b.multiselect('Cohorts',sorted(df['Cohort'].unique()),key=key+'c'); traj=c.multiselect('Trajectories',sorted(df['Trajectory'].unique()),key=key+'t')
-    x=df.copy()
-    if plans: x=x[x['Care Path'].isin(plans)]
+    a,b,c=st.columns(3)
+    plans=a.multiselect('Care paths',sorted(df['Care Path'].dropna().unique()),key=key+'p')
+    eligible=df[df['Care Path'].isin(plans)] if plans else df
+    cohort_options=sorted(eligible['Cohort'].dropna().unique())
+    cohort_key=key+'c'
+    if cohort_key in st.session_state:
+        st.session_state[cohort_key]=[v for v in st.session_state[cohort_key] if v in cohort_options]
+    cohorts=b.multiselect('Cohorts',cohort_options,key=cohort_key,help='Cohort choices automatically narrow to the selected care path(s).')
+    traj=c.multiselect('Trajectories',sorted(eligible['Trajectory'].dropna().unique()),key=key+'t')
+    x=eligible.copy()
     if cohorts: x=x[x['Cohort'].isin(cohorts)]
     if traj: x=x[x['Trajectory'].isin(traj)]
     return x
@@ -793,6 +812,41 @@ else:
 st.sidebar.divider(); st.sidebar.markdown(f'<span class="role-chip">Signed in as: {CURRENT_USER}<br>{CURRENT_ROLE}</span>',unsafe_allow_html=True)
 if st.sidebar.button('Sign out',use_container_width=True): st.session_state.auth_user=None; st.rerun()
 menu=st.session_state.selected_menu
+
+# Global command/search surface: live suggestions as the user types, with direct navigation.
+if _top_search.strip():
+    q=_top_search.strip().lower()
+    patient_hits=[]
+    for pid,p in PATIENTS.items():
+        hay=' '.join([p.get('name',''),p.get('mrn',''),p.get('care_plan',''),p.get('clinician',''),p.get('lifecycle_status','')]).lower()
+        if q in hay: patient_hits.append(pid)
+    all_nav=patient_menu+clinical_menu+integration_menu+ai_menu+research_menu
+    page_hits=[]
+    for item in all_nav:
+        clean=item.split(' · ',1)[1] if ' · ' in item else item
+        label=NAV_SHORT.get(clean,clean)
+        if q in (label+' '+clean).lower(): page_hits.append((item,label))
+    rdf=research_df()
+    cohort_hits=sorted({c for c in rdf['Cohort'].dropna().unique() if q in c.lower()})
+    with st.container(border=True):
+        st.markdown('**Search results**')
+        if patient_hits:
+            st.caption('Patients')
+            for pid in patient_hits[:6]:
+                p=PATIENTS[pid]; c1,c2=st.columns([5,1])
+                c1.write(f"**{p['name']}** · {p['mrn']} · {p['care_plan']} · {p.get('lifecycle_status','Active Monitoring')}")
+                if c2.button('Open',key='gpatient_'+pid,use_container_width=True):
+                    st.session_state['trends_patient_preferred']=pid; st.session_state.selected_menu='5 · Patient 360 & Trends'; st.rerun()
+        if page_hits:
+            st.caption('Platform pages')
+            cols=st.columns(min(3,len(page_hits)))
+            for i,(item,label) in enumerate(page_hits[:6]):
+                if cols[i%len(cols)].button(label,key='gpage_'+item,use_container_width=True): st.session_state.selected_menu=item; st.rerun()
+        if cohort_hits:
+            st.caption('Research cohorts')
+            for cohort in cohort_hits[:5]: st.write(f'• {cohort}')
+        if not patient_hits and not page_hits and not cohort_hits:
+            st.caption('No direct match yet. Try a patient name, MRN, care path, page name, clinician, lifecycle status, or research cohort.')
 
 def journey_strip(active='Monitor', related=None):
     steps=['Identify','Enroll','Prepare','Activate','Monitor','Intervene','Learn']
@@ -943,7 +997,30 @@ elif menu.startswith('4 ·'):
     research_count=research_df()['Research Participant ID'].nunique()
     st.markdown(f'''<div class="kpi-grid"><div class="kpi-card kpi-good"><div class="kpi-label">ACTIVE MONITORING</div><div class="kpi-value">{active_count}</div><div class="kpi-note">Patients currently in RPM</div></div><div class="kpi-card kpi-alert"><div class="kpi-label">NEED REVIEW</div><div class="kpi-value">12</div><div class="kpi-note">Clinical or workflow exceptions</div></div><div class="kpi-card kpi-blue"><div class="kpi-label">DISCHARGE CANDIDATES</div><div class="kpi-value">{len(DISCHARGE_CANDIDATES)}</div><div class="kpi-note">Transition queue</div></div><div class="kpi-card kpi-good"><div class="kpi-label">DATA CAPTURE</div><div class="kpi-value">94%</div><div class="kpi-note">Synthetic completeness</div></div></div>''',unsafe_allow_html=True)
     st.markdown('''<div class="ai-panel"><div class="section-eyebrow">CLINICAL INTELLIGENCE</div><strong>Start with the patients who need attention—not the entire census.</strong><p>Clinical, engagement, device and document signals are brought together while the RPM nurse or provider remains in control of the next action.</p><div class="ai-chips"><span class="ai-chip">Multi-signal prioritization</span><span class="ai-chip">Device exceptions</span><span class="ai-chip">Unread messages</span><span class="ai-chip">Human review required</span></div></div>''',unsafe_allow_html=True)
-    st.markdown('<div class="workspace-tabs"><span class="active">Patients needing attention</span><span>Recent results</span><span>Discharge candidates</span><span>Device issues</span></div>',unsafe_allow_html=True)
+    cc_tab=st.radio('Command Center workspace',['Patients needing attention','Recent results','Discharge candidates','Device issues'],horizontal=True,label_visibility='collapsed',key='cc_workspace_tab')
+    if cc_tab=='Recent results':
+        recent=sorted([e for e in events if PATIENTS.get(e['patient_id'],{}).get('lifecycle_status','Active Monitoring')=='Active Monitoring'],key=lambda x:x['timestamp'],reverse=True)[:12]
+        st.subheader('Recent clinical results')
+        for e in recent:
+            p=PATIENTS[e['patient_id']]; pri,reasons,_=assess(e)
+            st.markdown(f"<div class='candidate-card'><div class='candidate-top'><div><h3>{p['name']}</h3><span>{p['mrn']} · {p['care_plan']} · {e['timestamp'][:16].replace('T',' ')}</span></div><span class='fit-pill {'fit' if pri=='LOW' else 'review'}'>{pri}</span></div><div class='candidate-why'><b>Latest result</b><br>SpO₂ {e['spo2']}% · HR {e['ecg_hr']} bpm · ECG {e['ecg']} · {('No configured exception' if not reasons else reasons[0])}</div></div>",unsafe_allow_html=True)
+    elif cc_tab=='Discharge candidates':
+        st.subheader('Discharge candidates')
+        st.caption('Candidates identified for human RPM eligibility review. Enrollment is never automatic.')
+        for c in DISCHARGE_CANDIDATES:
+            st.markdown(f"<div class='candidate-card'><div class='candidate-top'><div><h3>{c['patient']}</h3><span>{c['mrn']} · {c['care_plan']} · Expected discharge: {c['discharge']}</span></div><span class='fit-pill'>{fit_bucket(c)}</span></div><div class='candidate-why'><b>Why flagged</b><br>{c['reason']}</div></div>",unsafe_allow_html=True)
+    elif cc_tab=='Device issues':
+        st.subheader('Device & connectivity issues')
+        issues=[]
+        for _pid,_p in PATIENTS.items():
+            if _p.get('lifecycle_status','Active Monitoring')!='Active Monitoring': continue
+            for d in st.session_state.devices.get(_pid,[]):
+                if (not d.get('connected',True)) or (not d.get('wifi',True)) or d.get('battery',100)<30:
+                    issues.append((_p,d))
+        if not issues: st.success('No active device exceptions in the current synthetic session.')
+        for p,d in issues:
+            reason='Disconnected' if not d.get('connected',True) else ('Offline' if not d.get('wifi',True) else f"Low battery · {d.get('battery',0)}%")
+            st.markdown(f"<div class='candidate-card'><div class='candidate-top'><div><h3>{p['name']}</h3><span>{p['mrn']} · {p['care_plan']}</span></div><span class='fit-pill review'>TECHNICAL</span></div><div class='candidate-why'><b>{d.get('device','Device')}</b><br>{reason} · Route to technical/device support before treating this as a clinical exception.</div></div>",unsafe_allow_html=True)
     aq=[]
     for _pid,_p in PATIENTS.items():
         if _p.get('lifecycle_status','Active Monitoring') != 'Active Monitoring': continue
@@ -957,7 +1034,7 @@ elif menu.startswith('4 ·'):
                 _reason=(_reasons[0] if _reasons else ('Unread patient message' if _unread else ('Device connectivity/battery exception' if _bad else 'Stable / routine monitoring')))
                 _action='Provider/RN review' if _pri in ['HIGH','MEDIUM'] else ('Respond to patient' if _unread else ('Technical outreach' if _bad else 'Monitor'))
             aq.append({'Priority':priority_badge(_pri),'Patient':_p['name'],'Care Plan':_p['care_plan'],'Reason':_reason,'Assigned clinician':_p['clinician'],'Next action':_action,'_rank':priority_rank(_pri)})
-    if aq:
+    if aq and cc_tab=='Patients needing attention':
         st.markdown('**Action Queue** — priority is the first column: 🔴 HIGH, 🟡 MEDIUM, 🟢 LOW. Use the filters to narrow the worklist.')
         aqdf=pd.DataFrame(aq)
         f1,f2,f3=st.columns(3)
@@ -1256,7 +1333,9 @@ elif menu.startswith('8 ·'):
                 if st.session_state.get('docs_show_sp')==e['event_id']: show_pdf_inline(pdf)
 
 elif menu.startswith('13 ·'):
-    st.header('AI Agent'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:PATIENTS[x]['name']); e=latest_for(pid); pri,reasons,score=assess(e); st.metric('Workflow priority',pri); st.progress(min(score/10,1.0))
+    st.header('AI Agent'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:PATIENTS[x]['name']); ensure_patient_runtime(pid); e=latest_for(pid);
+    if e is None: st.info('No RPM reading is available for this patient yet. Activate monitoring and ingest the first reading before running the AI workflow review.'); st.stop()
+    pri,reasons,score=assess(e); st.metric('Workflow priority',pri); st.progress(min(score/10,1.0))
     st.subheader('Agent-generated review summary'); st.write((f"Latest RPM event {e['event_id']} was prioritized as {pri}. "+' '.join(reasons)+ ' Clinical interpretation and action remain with the clinician.') if reasons else 'No configured workflow exception detected. Continue monitoring according to the care plan.')
     st.dataframe(pd.DataFrame([('Monitoring Agent','Evaluated ECG, vitals, longitudinal trends and questionnaire','COMPLETE'),('Adherence Agent','Checked expected measurement availability','COMPLETE'),('Integration Agent','Prepared structured EHR-ready payload','COMPLETE'),('Document Agent','Validated patient identifiers on ECG PDF','COMPLETE' if e['pdf_ok'] else 'HELD'),('Human-in-the-loop','Clinician outreach/intervention','COMPLETE' if interventions_for_event(e['event_id']) else 'PENDING' if pri!='LOW' else 'NOT REQUIRED')],columns=['Agent / Step','Action','Status']),hide_index=True,use_container_width=True)
 
@@ -1335,7 +1414,16 @@ elif menu.startswith('10 ·'):
         ints=[x for x in st.session_state.interventions if x['patient_id']==pid]; st.dataframe(pd.DataFrame(ints),hide_index=True,use_container_width=True) if ints else st.caption('No documented communication.')
 
 elif menu.startswith('12 ·'):
-    st.header('Data Lineage & Audit'); e=st.selectbox('Trace event',events,format_func=lambda x:f"{x['event_id']} · {PATIENTS[x['patient_id']]['name']} · {x['timestamp'][:16].replace('T',' ')}")
+    st.header('Data Lineage & Audit')
+    lineage_q=st.text_input('Search lineage',placeholder='Start typing patient, MRN, care path, event ID, ECG result or date…',key='lineage_search')
+    lineage_events=events
+    if lineage_q.strip():
+        q=lineage_q.lower().strip()
+        lineage_events=[x for x in events if q in ' '.join([x.get('event_id',''),PATIENTS[x['patient_id']].get('name',''),PATIENTS[x['patient_id']].get('mrn',''),PATIENTS[x['patient_id']].get('care_plan',''),x.get('ecg',''),x.get('timestamp','')]).lower()]
+        st.caption(f'{len(lineage_events)} matching event(s)')
+    if not lineage_events:
+        st.warning('No matching lineage events. Try a patient name, MRN, care path, event ID or ECG classification.'); st.stop()
+    e=st.selectbox('Trace event',lineage_events,format_func=lambda x:f"{x['event_id']} · {PATIENTS[x['patient_id']]['name']} · {PATIENTS[x['patient_id']]['care_plan']} · {x['timestamp'][:16].replace('T',' ')}")
     pri,_,_=assess(e); ints=interventions_for_event(e['event_id']); steps=[('1','Patient home',f"ECG={e['ecg']}; SpO₂={e['spo2']}%; weight={e['weight']} lb; questionnaire captured"),('2','Bluetooth / tablet','Connected-device values collected by patient app (simulated)'),('3','Vendor ingestion API','Normalized RPM event accepted'),('4','Clinical dashboard',f'Patient record updated; {pri} workflow priority calculated'),('5','Human intervention',f"{ints[-1]['channel']} — {ints[-1]['status']}" if ints else 'No communication documented yet'),('6','Integration API','LOINC-coded/FHIR-style payload prepared'),('7','Structured EHR path','Vitals and ECG values available in mock flowsheet'),('8','Document path','ECG PDF → Cloverleaf → OnBase → Media simulation' if e['pdf_ok'] else 'ECG PDF HELD because identifier validation failed')]
     for n,title,desc in steps: st.markdown(f'**{n}. {title}**  \n{desc}')
     st.subheader('Session audit log'); st.dataframe(pd.DataFrame(st.session_state.audit),hide_index=True,use_container_width=True) if st.session_state.audit else st.caption('Ingest or document an intervention to populate the live audit log.')
@@ -1446,7 +1534,8 @@ elif menu.startswith('16A ·'):
     counts=research_df().groupby('Cohort')['Research Participant ID'].nunique().rename('Participants')
     obs=research_df().groupby('Cohort').size().rename('Observations')
     catalog=catalog.merge(counts,left_on='Research Cohort',right_index=True,how='left').merge(obs,left_on='Research Cohort',right_index=True,how='left')
-    st.dataframe(catalog,hide_index=True,use_container_width=True,height=500)
+    for _,r in catalog.iterrows():
+        st.markdown(f"<div class='candidate-card'><div class='candidate-top'><div><h3>{r['Research Cohort']}</h3><span>{r['Operational Care Path']} · {int(r.get('Participants',0) or 0)} participants · {int(r.get('Observations',0) or 0):,} observations</span></div><span class='fit-pill'>LEARN</span></div><div class='candidate-grid'><div><b>Primary signals</b><span>{r['Primary Signals']}</span></div><div><b>Primary users</b><span>{r['Primary Users']}</span></div></div><div class='candidate-why'><b>Example research purpose</b><br>{r['Example Research Purpose']}</div></div>",unsafe_allow_html=True)
     st.info('Analysis subgroups such as Stable, Improving, Declining, Intermittent, high/low adherence, intervention/no intervention, and data-quality strata can be applied inside a cohort without redefining the cohort itself.')
     export_bar(research_df(),'rpm_research_cohort_catalog_source_data')
 
@@ -1504,7 +1593,22 @@ elif menu.startswith('20 ·'):
     st.warning('Interpretation guardrail: these are descriptive/exploratory synthetic results. Differences can reflect cohort mix, missingness or simulated assumptions; they do not establish that RPM caused an outcome.')
     export_bar(out,'research_report_'+re.sub(r'[^a-z0-9]+','_',report.lower()).strip('_'))
     st.divider(); st.subheader('Research Question Builder')
-    q1,q2,q3=st.columns(3); pop=q1.selectbox('Population',['All']+sorted(df['Care Path'].unique())); measure=q2.selectbox('Primary measure',['FEV₁ % Personal Baseline','SpO2','Heart Rate','Symptom Burden (0-5)','ECG Device Classification']); outcome=q3.selectbox('Outcome/context',['Intervention','Outcome','Alert'])
+    q1,q2,q3=st.columns(3); pop=q1.selectbox('Population',['All']+sorted(df['Care Path'].unique()))
+    measure_map={
+      'Lung Transplant':['FEV₁ % Personal Baseline','SpO2','Heart Rate','Symptom Burden (0-5)'],
+      'COPD / Pulmonary':['FEV₁ % Personal Baseline','SpO2','Heart Rate','Symptom Burden (0-5)'],
+      'Pulmonary Home Rehab':['FEV₁ % Personal Baseline','SpO2','Heart Rate','Symptom Burden (0-5)'],
+      'Pneumonitis':['FEV₁ % Personal Baseline','SpO2','Heart Rate','Symptom Burden (0-5)'],
+      'Cardiology':['ECG Device Classification','Heart Rate','SpO2','Symptom Burden (0-5)'],
+      'Heart Failure':['Weight lb','Systolic BP','Heart Rate','SpO2','Symptom Burden (0-5)'],
+      'Coronary Artery Disease (CAD)':['ECG Device Classification','Systolic BP','Heart Rate','Symptom Burden (0-5)'],
+      'Hypertension':['Systolic BP','Diastolic BP','Heart Rate','Symptom Burden (0-5)'],
+      'Diabetes / CGM':['Glucose mg/dL','Symptom Burden (0-5)'],
+      'CKD':['Systolic BP','Weight lb','Symptom Burden (0-5)'],
+      'Post-Surgical Recovery':['Weight lb','Symptom Burden (0-5)']}
+    all_measures=['FEV₁ % Personal Baseline','SpO2','Heart Rate','Systolic BP','Diastolic BP','Weight lb','Glucose mg/dL','Symptom Burden (0-5)','ECG Device Classification']
+    measure=q2.selectbox('Primary measure',measure_map.get(pop,all_measures),help='Measures are constrained to signals that are meaningful for the selected population in this synthetic research model.')
+    outcome=q3.selectbox('Outcome/context',['Intervention','Outcome','Alert'])
     qdf=df if pop=='All' else df[df['Care Path']==pop]; st.success(f'Question: In {pop} participants, how does {measure} relate longitudinally to {outcome}?  Cohort: {qdf["Research Participant ID"].nunique()} participants / {len(qdf):,} observations.')
     st.caption('This builder defines an exploratory cohort/question. Formal statistical inference, protocol approval and validated endpoints would be separate research activities.')
 
@@ -1517,7 +1621,8 @@ elif menu.startswith('21 ·'):
       ('Spirometry Research','FEV₁, FVC, FEV₁/FVC, PEF, personal-baseline change, quality, symptoms and interventions over time.','Pulmonary researchers / clinicians','Helps study trajectory, adherence, technical quality and whether concerning changes precede review or outcomes.'),
       ('6L ECG Research','Device-reported ECG classifications, heart rate, symptoms, alerts and human follow-up.','Cardiac researchers / clinicians','Helps quantify event burden, unclassified recordings and workflow after potentially actionable device results.'),
       ('Reports & Exports','Reusable report definitions, graphs and downloadable analysis-ready datasets.','Research / quality / leadership','Turns longitudinal observations into understandable evidence packages while preserving the underlying rows for independent analysis.')]
-    st.dataframe(pd.DataFrame(guide,columns=['Output','What it depicts','Primary users','How it can help']),hide_index=True,use_container_width=True)
+    for output,depicts,users,helps in guide:
+        st.markdown(f"<div class='candidate-card'><div class='candidate-top'><div><h3>{output}</h3><span>{users}</span></div><span class='fit-pill'>GUIDE</span></div><div class='candidate-why'><b>What it depicts</b><br>{depicts}</div><div class='candidate-why'><b>How it can help</b><br>{helps}</div></div>",unsafe_allow_html=True)
     st.subheader('How to measure clinical efficiency')
     st.markdown('''**Time to review:** alert timestamp → first clinician review.  
 **Time to patient contact:** alert timestamp → successful outreach.  
