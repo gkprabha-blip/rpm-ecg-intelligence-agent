@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
-st.set_page_config(page_title='RPM Connected Care AI Platform v3.4', page_icon='RPM', layout='wide')
+st.set_page_config(page_title='RPM Connected Care AI Platform v3.4.1', page_icon='RPM', layout='wide')
 
 PATIENTS = {
     'SYN-1001': {'name':'Maya Patel','clinician':'Dr. John Doe','mrn':'SYN-MRN-1001','dob':'1964-05-14','care_plan':'Cardiology','baseline_spo2':97,'baseline_weight':164.2,'baseline_hr':74},
@@ -521,7 +521,7 @@ div[data-testid="stSelectbox"] label p{font-size:.78rem!important;font-weight:65
 .role-chip{font-size:.88rem;font-weight:600}
 </style>''',unsafe_allow_html=True)
 def login_screen():
-    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.4</span></div>''', unsafe_allow_html=True)
+    st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.4.1</span></div>''', unsafe_allow_html=True)
     st.subheader('🔐 Secure Demo Sign In')
     st.info('Portfolio Demonstration Environment — all patients, credentials, measurements and workflows are synthetic. Demo authentication illustrates RBAC concepts and is not production healthcare security.')
     u=st.text_input('Username'); pw=st.text_input('Password',type='password')
@@ -532,7 +532,7 @@ def login_screen():
         else: st.error('Invalid demo username or password.')
 if not st.session_state.get('auth_user'): login_screen(); st.stop()
 CURRENT_USER=st.session_state.auth_user; CURRENT_ROLE=DEMO_ACCOUNTS[CURRENT_USER]['role']
-st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.4</span></div>''', unsafe_allow_html=True)
+st.markdown(r'''<div class="rpm-brand"><span class="rpm-logo" aria-hidden="true"><svg viewBox="0 0 48 48" width="34" height="34"><rect x="3" y="3" width="42" height="42" rx="12" fill="#E6F7F7"/><path d="M9 25h7l3-8 5 16 4-11 3 6h8" fill="none" stroke="#087F8C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="15" r="3" fill="#2F80ED"/></svg></span><span>RPM Connected Care AI Platform · v3.4.1</span></div>''', unsafe_allow_html=True)
 st.caption(f'Patient Experience • Clinical Operations • Integration • AI & Product • 100% synthetic portfolio data • Signed in as {CURRENT_USER} ({CURRENT_ROLE})')
 st.info('Portfolio prototype only. It does not diagnose, treat, or provide medical advice. ECG classifications are device-reported inputs; clinical decisions remain human-in-the-loop.')
 patient_menu=['1 · Today / Care Plan','2 · Patient Home & Daily Check-In','3 · Communication Center','3A · Education Center']
@@ -710,6 +710,8 @@ elif menu.startswith('4 ·'):
         ridx=selected.selection.rows[0]
         chosen_pid=popdf.iloc[ridx]['_pid']
         st.session_state['trends_patient_preferred']=chosen_pid
+        st.session_state['patient360_return_menu']='4 · Clinical Command Center & Action Queue'
+        st.session_state['patient360_opened_from_population']=True
         st.session_state.selected_menu='5 · Patient 360 & Trends'
         st.rerun()
     pid=patient_picker('Open patient clinical view','command_patient','Search assigned patient by name, MRN, care plan, or clinician')
@@ -803,7 +805,14 @@ elif menu.startswith('4B ·'):
     st.caption('Prototype segmentation: 9–13 RPM FIT; 6–8 REVIEW / ENABLE; 0–5 NOT CURRENTLY FIT. Synthetic design assumptions; validation and governance are required before production use.')
 
 elif menu.startswith('5 ·'):
-    st.header('👤 Patient 360 & Trends')
+    nav_left,nav_right=st.columns([1,5],vertical_alignment='center')
+    if st.session_state.get('patient360_opened_from_population'):
+        if nav_left.button('← Back to Command Center',key='back_to_command_center',use_container_width=True):
+            st.session_state.selected_menu=st.session_state.get('patient360_return_menu','4 · Clinical Command Center & Action Queue')
+            st.session_state['patient360_opened_from_population']=False
+            st.rerun()
+        nav_right.caption('Opened from Clinical Command Center · use Back to return to your filtered patient queue.')
+    st.header('Patient 360 & Trends')
     st.caption('Trend interpretation: baseline = patient’s recent typical range; threshold = clinician-configured alert boundary; current reading = actual measurement. Teal dashed lines are thresholds, purple points are manual entries, and red points are out-of-threshold readings.')
     pid=patient_picker('Patient','trends_patient'); p=PATIENTS[pid]
     st.info(f"Care plan: {p['care_plan']} | Program duration: {p.get('program_duration','Ongoing / clinician-defined')} | Next review: {p.get('next_review_date','Clinician-defined')}"); e=latest_for(pid)
@@ -902,12 +911,41 @@ elif menu.startswith('7 ·'):
     if rows: st.dataframe(pd.DataFrame(rows),hide_index=True,use_container_width=True)
 
 elif menu.startswith('8 ·'):
-    st.header('ECG & Spirometry Documents'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']}"); es=patient_events(pid)
-    for e in reversed(es[-4:]):
-        with st.expander(f"{e['event_id']} · {e['timestamp'][:16].replace('T',' ')} · {e['ecg']}",expanded=(e==es[-1])):
-            st.download_button('Download ECG PDF',ecg_pdf_bytes(e,e['pdf_ok']),file_name=f"{e['event_id']}_{PATIENTS[pid]['mrn']}.pdf",mime='application/pdf',key='pdf'+e['event_id'],type='primary')
-            checks={'Patient name on every page':True,'MRN on every page':e['pdf_ok'],'DOB on every page':True,'ECG timestamp':True,'Patient association':True}; st.dataframe(pd.DataFrame([{'Check':k,'Result':'PASS' if v else 'FAIL'} for k,v in checks.items()]),hide_index=True,use_container_width=True)
-            st.success('DOCUMENT VALIDATION PASSED — eligible for downstream transmission.') if e['pdf_ok'] else st.error('DOCUMENT VALIDATION FAILED — held; mock EHR Media filing blocked.')
+    st.header('ECG & Spirometry Documents')
+    st.caption('Patient-level document repository. ECG and spirometry reports are shown independently so every available historical result remains discoverable.')
+    pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:f"{PATIENTS[x]['name']} · {PATIENTS[x]['mrn']} · {PATIENTS[x]['care_plan']}",key='docs_patient')
+    es=patient_events(pid)
+    ecg_docs=list(reversed(es))
+    spiro_docs=[e for e in reversed(es) if e.get('fev1') is not None]
+    d1,d2,d3=st.columns(3)
+    d1.metric('ECG reports',len(ecg_docs)); d2.metric('Spirometry reports',len(spiro_docs)); d3.metric('Care plan',PATIENTS[pid]['care_plan'])
+    ecg_tab,spiro_tab=st.tabs([f'ECG Reports ({len(ecg_docs)})',f'Spirometry Reports ({len(spiro_docs)})'])
+    with ecg_tab:
+        if not ecg_docs: st.info('No ECG results are available for this patient.')
+        for i,e in enumerate(ecg_docs):
+            with st.expander(f"{e['timestamp'][:16].replace('T',' ')} · {e['ecg']} · {e['event_id']}",expanded=(i==0)):
+                a,b=st.columns(2)
+                pdf=ecg_pdf_bytes(e,e.get('pdf_ok',True))
+                if a.button('View ECG result',key='docs_view_ecg_'+e['event_id'],use_container_width=True):
+                    st.session_state['docs_show_ecg']=None if st.session_state.get('docs_show_ecg')==e['event_id'] else e['event_id']
+                b.download_button('Download ECG PDF',pdf,file_name=f"{e['event_id']}_{PATIENTS[pid]['mrn']}_ECG.pdf",mime='application/pdf',key='docs_dl_ecg_'+e['event_id'],use_container_width=True)
+                checks={'Patient name on every page':True,'MRN on every page':e.get('pdf_ok',True),'DOB on every page':True,'ECG timestamp':True,'Patient association':True}
+                st.dataframe(pd.DataFrame([{'Check':k,'Result':'PASS' if v else 'FAIL'} for k,v in checks.items()]),hide_index=True,use_container_width=True)
+                if st.session_state.get('docs_show_ecg')==e['event_id']: show_pdf_inline(pdf)
+                st.success('DOCUMENT VALIDATION PASSED — eligible for downstream transmission.') if e.get('pdf_ok',True) else st.error('DOCUMENT VALIDATION FAILED — held; mock EHR Media filing blocked.')
+    with spiro_tab:
+        if not spiro_docs:
+            st.info('No spirometry results are available for this patient. Spirometry appears only when the care pathway/order includes home spirometry and a result has been received.')
+        for i,e in enumerate(spiro_docs):
+            with st.expander(f"{e['timestamp'][:16].replace('T',' ')} · FEV1 {e['fev1']:.2f} L · {e['event_id']}",expanded=(i==0)):
+                st.write(f"**FEV1:** {e['fev1']:.2f} L  |  **FVC:** {e['fvc']:.2f} L  |  **FEV1/FVC:** {e['fev1_fvc']:.1f}%  |  **PEF:** {e['pef']:.0f} L/min  |  **FEV1 % personal baseline:** {e['fev1_pct_baseline']:.0f}%")
+                a,b=st.columns(2)
+                pdf=spirometry_pdf_bytes(e)
+                if a.button('View spirometry result',key='docs_view_sp_'+e['event_id'],use_container_width=True):
+                    st.session_state['docs_show_sp']=None if st.session_state.get('docs_show_sp')==e['event_id'] else e['event_id']
+                b.download_button('Download Spirometry PDF',pdf,file_name=f"{e['event_id']}_{PATIENTS[pid]['mrn']}_Spirometry.pdf",mime='application/pdf',key='docs_dl_sp_'+e['event_id'],use_container_width=True)
+                st.caption(f"Session quality: {e.get('spirometry_quality','Synthetic session')} · Result retained as a separate longitudinal document.")
+                if st.session_state.get('docs_show_sp')==e['event_id']: show_pdf_inline(pdf)
 
 elif menu.startswith('13 ·'):
     st.header('AI Agent'); pid=st.selectbox('Patient',list(PATIENTS),format_func=lambda x:PATIENTS[x]['name']); e=latest_for(pid); pri,reasons,score=assess(e); st.metric('Workflow priority',pri); st.progress(min(score/10,1.0))
@@ -1021,7 +1059,7 @@ elif menu.startswith('14 ·'):
     st.write('**Level 4 — Organization-defined urgent workflow:** handled according to the health system’s approved protocol; the prototype does not make autonomous treatment decisions.')
 
 elif menu.startswith('15 ·'):
-    st.header('Architecture & Product Story'); st.info('V3.4 (corrected icon build) is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
+    st.header('Architecture & Product Story'); st.info('V3.4.1 (corrected icon build) is organized into four product layers: Patient Experience → Clinical Experience → Integration → AI & Product. The design is inspired by common connected-care/RPM patterns, while all implementation, data, rules, and UI here are synthetic portfolio content.'); st.code('''ACUTE CARE / DISCHARGE PLANNING
   RPM Fit Screening → Human Eligibility Review → Consent / Care Path Selection
                     │
                     ▼
